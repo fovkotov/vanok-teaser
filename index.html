@@ -116,7 +116,7 @@
     top: calc(16 * var(--k));
     width: calc(157 * var(--k));
     font-size: calc(12 * var(--k));
-    line-height: normal;
+    line-height: calc(14 * var(--k));
     white-space: normal;
   }
 
@@ -124,6 +124,7 @@
     left: calc(151 * var(--k));
     top: calc(764 * var(--k));
     font-size: calc(12 * var(--k));
+    line-height: calc(14 * var(--k));
   }
 
   .mob .vanok {
@@ -143,6 +144,10 @@
   .mob .sign {
     left: calc(74.25 * var(--k));
     top: calc(465 * var(--k));
+    width: calc(226.492 * var(--k));
+  }
+
+  .mob .sign-line {
     width: calc(226.492 * var(--k));
   }
 
@@ -1435,13 +1440,19 @@ function mountViewportApple() {
   let shadeInput = null;
   let appleOnMobile = null;
 
-  // Mobile pose through 440px. Desktop pose applies only above that.
+  // Mobile pose is locked on the 375 artboard. Screen pixels scale with
+  // viewport width, the same ratio as .mob --k. Desktop pose is only above 440px.
+  const MOBILE_BOARD = 375;
+  function mobileFrameScale() {
+    return Math.max(innerWidth, 1) / MOBILE_BOARD;
+  }
   function applyAppleLayout() {
     const mobile = matchMedia('(max-width: 440px)').matches;
     if (mobile) {
-      VIEW_APPLE.size = 5.34;
-      VIEW_APPLE.xPx = 104;
-      VIEW_APPLE.bottomPx = 803;
+      const k = mobileFrameScale();
+      VIEW_APPLE.size = 5.34 * k;
+      VIEW_APPLE.xPx = 104 * k;
+      VIEW_APPLE.bottomPx = 803 * k;
     } else if (appleOnMobile !== false) {
       VIEW_APPLE.xPx = 1290;
       VIEW_APPLE.bottomPx = 1020;
@@ -1535,7 +1546,12 @@ function mountViewportApple() {
     camera.right = viewW / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
-    if (appleModel) appleModel.scale.setScalar(0.78 * VIEW_APPLE.size);
+    // The camera already zooms with viewport width. On mobile, VIEW_APPLE.size
+    // includes that same scale, so the mesh stays on the 375 pose.
+    const poseSize = matchMedia('(max-width: 440px)').matches
+      ? VIEW_APPLE.size / mobileFrameScale()
+      : VIEW_APPLE.size;
+    if (appleModel) appleModel.scale.setScalar(0.78 * poseSize);
     tilt.position.set(
       (VIEW_APPLE.xPx / w) * viewW - viewW / 2,
       0,
