@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 <style>
   /* Desktop frame 110:1711 is 1440×800. Mobile frame 109:517 is 375×812.
-     --k scales a frame from its own width. The switch is the mobile artboard. */
+     --k scales a frame from its own width. Mobile shows through 440px. */
   :root {
     --bg: #d7d7d7;
     --blue: #0c6df4;
@@ -154,7 +154,7 @@
     font-size: calc(12 * var(--k));
   }
 
-  @media (max-width: 375px) {
+  @media (max-width: 440px) {
     .desk { display: none; }
     .mob { display: block; }
   }
@@ -1436,10 +1436,10 @@ function mountViewportApple() {
   let appleOnMobile = null;
 
   // Frame 109:517 fruit (the PNG is only a placeholder). At 375×812 the
-  // pivot is xPx 85.1, bottomPx 822.5, size 5.97. Below 375 the same
+  // pivot is xPx 85.1, bottomPx 822.5, size 5.97. Through 440px the same
   // spot scales with the frame; bottomPx stays a viewport-bottom offset.
   function applyAppleLayout() {
-    const mobile = matchMedia('(max-width: 375px)').matches;
+    const mobile = matchMedia('(max-width: 440px)').matches;
     if (mobile) {
       const k = Math.max(innerWidth, 2) / 375;
       VIEW_APPLE.size = 5.97;
