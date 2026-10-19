@@ -1435,16 +1435,13 @@ function mountViewportApple() {
   let shadeInput = null;
   let appleOnMobile = null;
 
-  // Frame 109:517 fruit (the PNG is only a placeholder). At 375×812 the
-  // pivot is xPx 85.1, bottomPx 822.5, size 5.97. Through 440px the same
-  // spot scales with the frame; bottomPx stays a viewport-bottom offset.
+  // Mobile pose through 440px. Desktop pose applies only above that.
   function applyAppleLayout() {
     const mobile = matchMedia('(max-width: 440px)').matches;
     if (mobile) {
-      const k = Math.max(innerWidth, 2) / 375;
-      VIEW_APPLE.size = 5.97;
-      VIEW_APPLE.xPx = 85.1 * k;
-      VIEW_APPLE.bottomPx = innerHeight - (-10.45 * k);
+      VIEW_APPLE.size = 5.34;
+      VIEW_APPLE.xPx = 104;
+      VIEW_APPLE.bottomPx = 803;
     } else if (appleOnMobile !== false) {
       VIEW_APPLE.xPx = 1290;
       VIEW_APPLE.bottomPx = 1020;
