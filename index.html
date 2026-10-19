@@ -452,9 +452,9 @@ function prepareStamp(model) {
 
 const APPLE_FILE = 'models/apple_green_quaternius.glb';
 const STAMP_FILE = 'models/stamp_round.glb';
-const APPLE_GREEN = 0x9de637;
+const APPLE_GREEN = 0x67c514;
 const APPLE_RED = 0xe23b32;
-const STAMP_GREEN = 0x9de637;
+const STAMP_GREEN = 0x67c514;
 
 function cloneMaterials(root) {
   root.traverse((o) => {
@@ -531,22 +531,22 @@ function prepareHalfApple(gltf) {
 const STAMP_IMPRINTS = [
   { file: 'stamp-01.png', src: 'design/stamps/stamp-01.png?v=297' },
   { file: 'stamp-02.png', src: 'design/stamps/stamp-02.png?v=301' },
-  { file: 'stamp-green.png', src: 'design/stamps/stamp-green.png?v=298' },
+  { file: 'stamp-green.png', src: 'design/stamps/stamp-green.png?v=298b' },
 ];
 const APPLE_IMPRINTS = [
   { file: 'apple-01.png', src: 'design/stamps/apple-01.png?v=299' },
   { file: 'apple-02.png', src: 'design/stamps/apple-02.png?v=302' },
-  { file: 'apple-green.png', src: 'design/stamps/apple-green.png?v=300' },
+  { file: 'apple-green.png', src: 'design/stamps/apple-green.png?v=300b' },
 ];
 const STAMP_CASTS = [
   { file: 'stamp-01.png', hex: 0x0c70f4, color: 'blue' },
   { file: 'stamp-02.png', hex: 0xff91f8, color: 'pink' },
-  { file: 'stamp-green.png', hex: 0x9de637, color: 'green' },
+  { file: 'stamp-green.png', hex: 0x67c514, color: 'green' },
 ];
 const APPLE_CASTS = [
   { file: 'apple-01.png', hex: 0x0c6df4, color: 'blue' },
   { file: 'apple-02.png', hex: 0xff91f8, color: 'pink' },
-  { file: 'apple-green.png', hex: 0x9de637, color: 'green' },
+  { file: 'apple-green.png', hex: 0x67c514, color: 'green' },
 ];
 const INK_FRAC = 505 / 539;
 
@@ -1890,7 +1890,7 @@ function mountViewportApple() {
   };
 }
 
-const SKIN = { color: 0x9de637, emissive: 0xbff551, emissiveIntensity: 0.1, metalness: 0, roughness: 0.42 };
+const SKIN = { color: 0x67c514, emissive: 0x7be81a, emissiveIntensity: 0.1, metalness: 0, roughness: 0.42 };
 const STEM = { color: 0x7a4e28, emissive: 0x000000, emissiveIntensity: 0, metalness: 0, roughness: 0.64 };
 const LEAF = { color: 0x2f861f, emissive: 0x14300a, emissiveIntensity: 0.18, metalness: 0, roughness: 0.52 };
 const FLESH = { color: 0xf6e0b8, emissive: 0xf0d0a0, emissiveIntensity: 0.08, metalness: 0, roughness: 0.62 };
