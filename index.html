@@ -1503,7 +1503,7 @@ function mountSignStamp(host) {
 // Направление света то же, что у DirectionalLight (−2.4, 5.2, −1.7).
 const VIEW_APPLE = {
   xPx: 1290,
-  bottomPx: 1020,
+  topPx: 0,
   rotX: 59.3,
   rotY: -142.3,
   rotZ: -18.2,
@@ -1550,7 +1550,7 @@ function applyShadeSmooth(root, smooth) {
 
 function mountViewportApple() {
   if (VIEW_APPLE.xPx == null) VIEW_APPLE.xPx = Math.round(innerWidth * 0.5);
-  if (VIEW_APPLE.bottomPx == null) VIEW_APPLE.bottomPx = Math.round(innerHeight * 0.42);
+  if (VIEW_APPLE.topPx == null) VIEW_APPLE.topPx = 0;
 
   const host = document.createElement('div');
   host.className = 'apple-view';
@@ -1598,13 +1598,15 @@ function mountViewportApple() {
   let alive = true;
   let appleModel = null;
   let xInput = null;
-  let bottomInput = null;
+  let topInput = null;
   let sizeInput = null;
   let shadeInput = null;
   let appleOnMobile = null;
 
   // Mobile pose is locked on the 375 artboard. Screen pixels scale with
-  // viewport width, the same ratio as .mob --k. Desktop pose is only above 440px.
+  // viewport width, the same ratio as .mob --k. Vertical position is
+  // −18 design px from the top, so viewport height does not move it.
+  // Desktop pose is only above 440px.
   const MOBILE_BOARD = 375;
   function mobileFrameScale() {
     return Math.max(innerWidth, 1) / MOBILE_BOARD;
@@ -1615,15 +1617,15 @@ function mountViewportApple() {
       const k = mobileFrameScale();
       VIEW_APPLE.size = 5.34 * k;
       VIEW_APPLE.xPx = 104 * k;
-      VIEW_APPLE.bottomPx = 830 * k;
+      VIEW_APPLE.topPx = -18 * k;
     } else if (appleOnMobile !== false) {
       VIEW_APPLE.xPx = 1290;
-      VIEW_APPLE.bottomPx = 1020;
+      VIEW_APPLE.topPx = 0;
       VIEW_APPLE.size = 1.88;
     }
     appleOnMobile = mobile;
     writeAppleSlider(xInput, 'xPx', (v) => Math.round(v) + ' px');
-    writeAppleSlider(bottomInput, 'bottomPx', (v) => Math.round(v) + ' px');
+    writeAppleSlider(topInput, 'topPx', (v) => Math.round(v) + ' px');
     writeAppleSlider(sizeInput, 'size', (v) => Math.round(v * 100) + '%');
   }
   function writeAppleSlider(input, keyName, format) {
@@ -1718,7 +1720,7 @@ function mountViewportApple() {
     tilt.position.set(
       (VIEW_APPLE.xPx / w) * viewW - viewW / 2,
       0,
-      viewH / 2 - (VIEW_APPLE.bottomPx / h) * viewH,
+      (VIEW_APPLE.topPx / h) * viewH - viewH / 2,
     );
     tilt.rotation.set(
       VIEW_APPLE.rotX * Math.PI / 180,
@@ -1771,7 +1773,7 @@ function mountViewportApple() {
     ground.scale.set(viewW * 1.4, viewH * 1.4, 1);
     if (xInput) {
       xInput.max = String(Math.ceil(w + 400));
-      bottomInput.max = String(Math.ceil(h + 400));
+      topInput.max = String(Math.ceil(h + 400));
     }
     followPointer();
   }
@@ -1846,7 +1848,7 @@ function mountViewportApple() {
   applyAppleLayout();
   addHeading('Положение');
   xInput = addSlider('По горизонтали', 'xPx', -400, Math.ceil(innerWidth + 400), 1, (v) => Math.round(v) + ' px', placeApple);
-  bottomInput =   addSlider('Высота от низа экрана', 'bottomPx', -400, Math.ceil(innerHeight + 400), 1, (v) => Math.round(v) + ' px', placeApple);
+  topInput = addSlider('От верха экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, (v) => Math.round(v) + ' px', placeApple);
   sizeInput = addSlider('Размер', 'size', 0.2, 8, 0.01, (v) => Math.round(v * 100) + '%', placeApple);
   addHeading('Поворот яблока');
   addSlider('X', 'rotX', -180, 180, 0.1, (v) => v.toFixed(1) + '°', placeApple);
@@ -1931,7 +1933,7 @@ function mountViewportApple() {
     const round = (value, digits) => Number(Number(value).toFixed(digits));
     const json = JSON.stringify({
       xPx: Math.round(VIEW_APPLE.xPx),
-      bottomPx: Math.round(VIEW_APPLE.bottomPx),
+      topPx: Math.round(VIEW_APPLE.topPx),
       size: round(VIEW_APPLE.size, 2),
       rotX: round(VIEW_APPLE.rotX, 1),
       rotY: round(VIEW_APPLE.rotY, 1),
