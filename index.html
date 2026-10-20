@@ -167,16 +167,19 @@
   }
 
   .mob .soon {
-    left: calc(278 * var(--k));
-    top: calc(771 * var(--k));
-    width: calc(73 * var(--k));
+    right: calc(24 * var(--k));
+    top: calc(768 * var(--k));
+    height: calc(20 * var(--k));
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     font-size: calc(12 * var(--k));
     line-height: calc(14 * var(--k));
   }
 
   .mob .crosshair {
-    left: calc(23.231 * var(--k));
-    top: calc(767.231 * var(--k));
+    left: calc(24 * var(--k));
+    top: calc((768 + (20 - 21.535) / 2) * var(--k));
     width: calc(21.535 * var(--k));
     height: calc(21.535 * var(--k));
   }
@@ -982,15 +985,11 @@ function mountSignStamp(host) {
   let alive = true;
   let stampModel = null;
   let appleModel = null;
-  let model = null;
-  let phase = 'hidden';
-  let phaseU = 0;
-  let shot = null;
-  let queued = false;
-  let queuedPoint = null;
   let pressN = 0;
   let lastNow = 0;
   const marks = [];
+  const flights = [];
+  const queued = [];
 
   function refreshFiles() {
     for (const ui of fileUis) {
@@ -1152,9 +1151,9 @@ function mountSignStamp(host) {
     return 1.12 - 0.12 * (1 - (1 - v) ** 2);
   }
 
-  function axisPose(prefix) {
+  function axisPose(flight, prefix) {
     const d = Math.PI / 180;
-    const rig = shot.rig;
+    const rig = flight.shot.rig;
     return {
       x: rig[prefix + 'X'] * d,
       y: rig[prefix + 'Y'] * d,
@@ -1175,10 +1174,10 @@ function mountSignStamp(host) {
     return lerpPose(via, to, (u - 0.5) / 0.5);
   }
 
-  function poseFor(name, u) {
-    const start = axisPose('start');
-    const fly = axisPose('fly');
-    const press = axisPose('press');
+  function poseFor(flight, name, u) {
+    const start = axisPose(flight, 'start');
+    const fly = axisPose(flight, 'fly');
+    const press = axisPose(flight, 'press');
     if (name === 'descend') return travelPose(u, start, fly, press);
     if (name === 'lift') return travelPose(u, press, fly, start);
     return press;
@@ -1227,15 +1226,49 @@ function mountSignStamp(host) {
     });
   }
 
-  function applyPose(x, z, squashAmt, rot, presence, spin) {
+  function cloneTool(source) {
+    const clone = source.clone(true);
+    clone.traverse((node) => {
+      if (!node.isMesh || !node.material) return;
+      node.material = Array.isArray(node.material)
+        ? node.material.map((material) => material.clone())
+        : node.material.clone();
+    });
+    clone.visible = false;
+    scene.add(clone);
+    return clone;
+  }
+
+  function cloneShadow() {
+    const mesh = shadow.clone();
+    mesh.material = shadow.material.clone();
+    mesh.visible = false;
+    scene.add(mesh);
+    return mesh;
+  }
+
+  function releaseFlight(flight) {
+    scene.remove(flight.model);
+    flight.model.traverse((node) => {
+      if (!node.isMesh || !node.material) return;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of mats) material.dispose();
+    });
+    scene.remove(flight.shadow);
+    flight.shadow.material.dispose();
+    flight.model.visible = false;
+    flight.shadow.visible = false;
+  }
+
+  function applyPose(flight, x, z, squashAmt, rot, presence, spin) {
+    const shot = flight.shot;
     const rig = shot.rig;
     const size = SIZE * (shot.kind === 'apple' ? rig.scale : rig.printScale);
     const pressed = pressScales(rig.squash, squashAmt);
     const spread = pressed.x;
     const squat = pressed.y;
-    const euler = spin || poseFor('press', 1);
-    if (stampModel) stampModel.visible = false;
-    if (appleModel) appleModel.visible = false;
+    const euler = spin || poseFor(flight, 'press', 1);
+    const model = flight.model;
     model.scale.set(size * spread, size * squat, size * spread);
     model.rotation.order = 'XYZ';
     model.rotation.set(euler.x, euler.y - rot * Math.PI / 180, euler.z);
@@ -1243,10 +1276,11 @@ function mountSignStamp(host) {
     model.visible = true;
     if (shot.kind === 'apple') tintObject(model, rig);
     if (shot.bodyHex != null) paintTool(model, shot.kind, shot.bodyHex);
-    shadow.visible = true;
-    shadow.position.set(x + 0.04, 0.002, z + 0.03);
-    shadow.material.opacity = 0.1 + presence * 0.22 + Math.min(1, squashAmt) * 0.4;
-    shadow.scale.setScalar(1.12 - Math.min(1, squashAmt) * 0.1);
+    const shade = flight.shadow;
+    shade.visible = true;
+    shade.position.set(x + 0.04, 0.002, z + 0.03);
+    shade.material.opacity = 0.1 + presence * 0.22 + Math.min(1, squashAmt) * 0.4;
+    shade.scale.setScalar(1.12 - Math.min(1, squashAmt) * 0.1);
   }
 
   function kindReady(kind) {
@@ -1255,81 +1289,99 @@ function mountSignStamp(host) {
 
   function start(point) {
     const kind = pressN % 2 === 0 ? 'stamp' : 'apple';
-    const rig = kind === 'stamp' ? stampRig : appleRig;
-    model = kindReady(kind);
-    if (!model) {
-      queued = true;
-      queuedPoint = point;
+    const source = kindReady(kind);
+    if (!source) {
+      queued.push(point);
       return;
     }
     pressN += 1;
-    shot = sampleShot(point, rig, kind);
+    const rig = kind === 'stamp' ? stampRig : appleRig;
+    const shot = sampleShot(point, rig, kind);
+    const flight = {
+      shot,
+      phase: 'descend',
+      phaseU: 0,
+      model: cloneTool(source),
+      shadow: cloneShadow(),
+    };
+    flights.push(flight);
     const ui = fileUis.find((item) => item.kind === kind);
     if (ui) ui.last.textContent = 'Сейчас: ' + shot.file;
     refreshFiles();
-    phase = 'descend';
-    phaseU = 0;
     const goal = targetOf(shot);
-    applyPose(goal.x, goal.edge, 0, shot.rot, 0, poseFor('descend', 0));
+    applyPose(flight, goal.x, goal.edge, 0, shot.rot, 0, poseFor(flight, 'descend', 0));
+  }
+
+  function drainQueue() {
+    while (queued.length) {
+      const kind = pressN % 2 === 0 ? 'stamp' : 'apple';
+      if (!kindReady(kind)) return;
+      start(queued.shift());
+    }
+  }
+
+  function stepFlight(flight, dt) {
+    const shot = flight.shot;
+    if (flight.phase === 'rest') {
+      if (shot.rig.liftAway) {
+        flight.phase = 'lift';
+        flight.phaseU = 0;
+      } else {
+        const goal = targetOf(shot);
+        applyPose(flight, goal.x, goal.z, 1, shot.rot, 1, poseFor(flight, 'press', 1));
+      }
+      return false;
+    }
+    const goal = targetOf(shot);
+    if (flight.phase === 'descend') {
+      flight.phaseU += dt / motionSeconds(0.62, shot.rig.descent);
+      const u = Math.min(1, flight.phaseU);
+      const k = 1 - (1 - u) ** 3;
+      applyPose(flight, goal.x, goal.edge + (goal.z - goal.edge) * k, 0, shot.rot, k, poseFor(flight, 'descend', u));
+      if (u >= 1) { flight.phase = 'press'; flight.phaseU = 0; }
+    } else if (flight.phase === 'press') {
+      flight.phaseU += dt / pressSeconds();
+      const u = Math.min(1, flight.phaseU);
+      applyPose(flight, goal.x, goal.z, squashCurve(u), shot.rot, 1, poseFor(flight, 'press', 1));
+      if (u >= 0.5) placeInk(shot);
+      if (u >= 1) { flight.phase = 'dwell'; flight.phaseU = 0; }
+    } else if (flight.phase === 'repress') {
+      flight.phaseU += dt / pressSeconds();
+      const u = Math.min(1, flight.phaseU);
+      const sq = 1 + Math.sin(Math.min(1, u) * Math.PI) * 0.35;
+      applyPose(flight, goal.x, goal.z, sq, shot.rot, 1, poseFor(flight, 'press', 1));
+      if (u >= 0.2) placeInk(shot);
+      if (u >= 1) { flight.phase = 'dwell'; flight.phaseU = 0; }
+    } else if (flight.phase === 'dwell') {
+      applyPose(flight, goal.x, goal.z, 1, shot.rot, 1, poseFor(flight, 'press', 1));
+      placeInk(shot);
+      if (shot.rig.dwell <= 0.001) {
+        flight.phase = shot.rig.liftAway ? 'lift' : 'rest';
+        flight.phaseU = 0;
+      } else {
+        flight.phaseU += dt / shot.rig.dwell;
+        if (flight.phaseU >= 1) {
+          flight.phase = shot.rig.liftAway ? 'lift' : 'rest';
+          flight.phaseU = 0;
+        }
+      }
+    } else if (flight.phase === 'lift') {
+      flight.phaseU += dt / motionSeconds(0.42, shot.rig.lift);
+      const u = Math.min(1, flight.phaseU);
+      const k = u * u;
+      const release = Math.max(0, 1 - Math.min(1, u / 0.28));
+      applyPose(flight, goal.x, goal.z + (goal.edge - goal.z) * k, release, shot.rot, 1 - k, poseFor(flight, 'lift', u));
+      if (u >= 1) {
+        releaseFlight(flight);
+        return true;
+      }
+    }
+    return false;
   }
 
   function step(dt) {
-    if (!model || phase === 'hidden') return;
-    if (phase === 'rest') {
-      if (shot.rig.liftAway) {
-        phase = 'lift';
-        phaseU = 0;
-      } else if (shot) {
-        const goal = targetOf(shot);
-        applyPose(goal.x, goal.z, 1, shot.rot, 1, poseFor('press', 1));
-      }
-      return;
-    }
-    if (!shot) return;
-    const goal = targetOf(shot);
-    if (phase === 'descend') {
-      phaseU += dt / motionSeconds(0.62, shot.rig.descent);
-      const u = Math.min(1, phaseU);
-      const k = 1 - (1 - u) ** 3;
-      applyPose(goal.x, goal.edge + (goal.z - goal.edge) * k, 0, shot.rot, k, poseFor('descend', u));
-      if (u >= 1) { phase = 'press'; phaseU = 0; }
-    } else if (phase === 'press') {
-      phaseU += dt / pressSeconds();
-      const u = Math.min(1, phaseU);
-      applyPose(goal.x, goal.z, squashCurve(u), shot.rot, 1, poseFor('press', 1));
-      if (u >= 0.5) placeInk(shot);
-      if (u >= 1) { phase = 'dwell'; phaseU = 0; }
-    } else if (phase === 'repress') {
-      phaseU += dt / pressSeconds();
-      const u = Math.min(1, phaseU);
-      const sq = 1 + Math.sin(Math.min(1, u) * Math.PI) * 0.35;
-      applyPose(goal.x, goal.z, sq, shot.rot, 1, poseFor('press', 1));
-      if (u >= 0.2) placeInk(shot);
-      if (u >= 1) { phase = 'dwell'; phaseU = 0; }
-    } else if (phase === 'dwell') {
-      applyPose(goal.x, goal.z, 1, shot.rot, 1, poseFor('press', 1));
-      placeInk(shot);
-      if (shot.rig.dwell <= 0.001) {
-        phase = shot.rig.liftAway ? 'lift' : 'rest';
-        phaseU = 0;
-      } else {
-        phaseU += dt / shot.rig.dwell;
-        if (phaseU >= 1) {
-          phase = shot.rig.liftAway ? 'lift' : 'rest';
-          phaseU = 0;
-        }
-      }
-    } else if (phase === 'lift') {
-      phaseU += dt / motionSeconds(0.42, shot.rig.lift);
-      const u = Math.min(1, phaseU);
-      const k = u * u;
-      const release = Math.max(0, 1 - Math.min(1, u / 0.28));
-      applyPose(goal.x, goal.z + (goal.edge - goal.z) * k, release, shot.rot, 1 - k, poseFor('lift', u));
-      if (u >= 1) {
-        phase = 'hidden';
-        model.visible = false;
-        shadow.visible = false;
-      }
+    for (let i = flights.length - 1; i >= 0; i--) {
+      if (stepFlight(flights[i], dt)) flights.splice(i, 1);
     }
   }
 
@@ -1339,7 +1391,6 @@ function mountSignStamp(host) {
       '.stamp-panel, .apple-light, .crosshair'
     );
     if (blocked) return;
-    if (phase !== 'hidden' && phase !== 'rest') return;
     const hr = host.getBoundingClientRect();
     const point = { px: e.clientX - hr.left, py: e.clientY - hr.top };
     start(point);
@@ -1400,13 +1451,7 @@ function mountSignStamp(host) {
     scene.add(group);
     if (kind === 'stamp') stampModel = group;
     else appleModel = group;
-    if (!queued || !queuedPoint) return;
-    const need = pressN % 2 === 0 ? 'stamp' : 'apple';
-    if (!kindReady(need)) return;
-    const point = queuedPoint;
-    queued = false;
-    queuedPoint = null;
-    start(point);
+    drainQueue();
   }
 
   new GLTFLoader().load('models/stamp_round.glb', (gltf) => {
@@ -1428,9 +1473,11 @@ function mountSignStamp(host) {
   });
 
   function applyThemeInk() {
-    if (shot && shot.castHex != null) {
-      const themed = themeHex();
-      shot.bodyHex = themed == null ? shot.castHex : themed;
+    const themed = themeHex();
+    for (const flight of flights) {
+      if (flight.shot.castHex != null) {
+        flight.shot.bodyHex = themed == null ? flight.shot.castHex : themed;
+      }
     }
     paintMarks();
   }
@@ -1438,6 +1485,7 @@ function mountSignStamp(host) {
 
   return () => {
     alive = false;
+    while (flights.length) releaseFlight(flights.pop());
     document.documentElement.removeEventListener('vanok-theme', applyThemeInk);
     removeEventListener('click', onClick, true);
     removeEventListener('keydown', onKey);
