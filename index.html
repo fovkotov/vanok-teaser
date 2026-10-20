@@ -13,6 +13,8 @@
     --blue: #0c6df4;
     --grotesk: Arial, "Helvetica Neue", Helvetica, sans-serif;
   }
+  html[data-theme="1"] { --blue: #8A7E59; }
+  html[data-theme="2"] { --blue: #E3F4E8; }
 
   * { box-sizing: border-box; }
 
@@ -41,10 +43,25 @@
   .frame img { position: absolute; display: block; max-width: none; }
 
   .crosshair {
+    position: absolute;
+    z-index: 9;
     left: calc(11.06 * var(--k));
     top: calc(11.23 * var(--k));
     width: calc(21.535 * var(--k));
     height: calc(21.535 * var(--k));
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--blue);
+    line-height: 0;
+    cursor: pointer;
+  }
+  .crosshair svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
 
   .bio {
@@ -83,6 +100,27 @@
     height: calc(170.996 * var(--k));
   }
 
+  .frame .lettering { display: none; }
+  html[data-theme="1"] .frame .lettering-1,
+  html[data-theme="2"] .frame .lettering-2 { display: block; }
+  html[data-theme="1"] .vanok,
+  html[data-theme="1"] .regular,
+  html[data-theme="2"] .vanok,
+  html[data-theme="2"] .regular { display: none; }
+
+  .desk .lettering-1 {
+    left: calc(697.39 * var(--k));
+    top: calc(12 * var(--k));
+    width: calc(618.91 * var(--k));
+    height: calc(134.72 * var(--k));
+  }
+  .desk .lettering-2 {
+    left: calc(697.39 * var(--k));
+    top: calc(25.04 * var(--k));
+    width: calc(618.91 * var(--k));
+    height: calc(108.64 * var(--k));
+  }
+
   .sign { position: absolute; }
 
   .desk .sign {
@@ -92,10 +130,12 @@
   }
 
   .sign-line {
+    position: absolute;
     left: 0;
     top: 0;
     width: 100%;
     height: calc(1 * var(--k));
+    background: var(--blue);
   }
 
   .sign p {
@@ -147,6 +187,19 @@
     top: calc(93.593 * var(--k));
     width: calc(214.658 * var(--k));
     height: calc(90.339 * var(--k));
+  }
+
+  .mob .lettering-1 {
+    left: calc(24 * var(--k));
+    top: calc(77 * var(--k));
+    width: calc(327 * var(--k));
+    height: calc(71.32 * var(--k));
+  }
+  .mob .lettering-2 {
+    left: calc(24 * var(--k));
+    top: calc(83.89 * var(--k));
+    width: calc(327 * var(--k));
+    height: calc(57.57 * var(--k));
   }
 
   .mob .sign {
@@ -388,26 +441,60 @@
   <section class="frame desk" aria-label="Desktop">
     <img class="vanok" src="design/stub/wordmark-vanok.svg" alt="">
     <img class="regular" src="design/stub/wordmark-regular.svg" alt="">
-    <img class="crosshair" src="design/stub/crosshair.svg" alt="">
+    <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
+    <img class="lettering lettering-2" src="design/stub/wordmark-e3f4e8.svg" alt="">
+    <button type="button" class="crosshair" aria-label="Cycle theme">
+      <svg preserveAspectRatio="none" overflow="visible" viewBox="0 0 21.5352 21.5352" fill="none" aria-hidden="true">
+        <path d="M21.1507 10.7676C21.1507 16.502 16.502 21.1507 10.7676 21.1507C5.03321 21.1507 0.384558 16.502 0.384558 10.7676C0.384558 5.03321 5.03321 0.384558 10.7676 0.384558C16.502 0.384558 21.1507 5.03321 21.1507 10.7676Z" stroke-width="0.769115" stroke="currentColor"/>
+        <path d="M15.8609 10.4743C15.8609 13.2853 13.5821 15.564 10.7712 15.564C7.96018 15.564 5.68143 13.2853 5.68143 10.4743C5.68143 7.66331 7.96018 5.38456 10.7712 5.38456C13.5821 5.38456 15.8609 7.66331 15.8609 10.4743Z" stroke-width="0.769115" stroke="currentColor"/>
+        <path d="M10.8646 0.769115L10.8646 20.7661" stroke-width="0.769115" stroke="currentColor"/>
+        <path d="M0.769115 10.3846L20.7661 10.3846" stroke-width="0.769115" stroke="currentColor"/>
+      </svg>
+    </button>
     <p class="bio">Vanök Regular — a graphic designer and art director based in Belgrad, Serbia</p>
     <p class="soon">Website soon</p>
     <div class="sign">
-      <img class="sign-line" src="design/stub/line.svg" alt="">
+      <div class="sign-line"></div>
       <p>sign here</p>
     </div>
   </section>
   <section class="frame mob" aria-label="Mobile">
     <img class="vanok" src="design/stub/wordmark-vanok.svg" alt="">
     <img class="regular" src="design/stub/wordmark-regular.svg" alt="">
-    <img class="crosshair" src="design/stub/crosshair.svg" alt="">
+    <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
+    <img class="lettering lettering-2" src="design/stub/wordmark-e3f4e8.svg" alt="">
+    <button type="button" class="crosshair" aria-label="Cycle theme">
+      <svg preserveAspectRatio="none" overflow="visible" viewBox="0 0 21.5352 21.5352" fill="none" aria-hidden="true">
+        <path d="M21.1507 10.7676C21.1507 16.502 16.502 21.1507 10.7676 21.1507C5.03321 21.1507 0.384558 16.502 0.384558 10.7676C0.384558 5.03321 5.03321 0.384558 10.7676 0.384558C16.502 0.384558 21.1507 5.03321 21.1507 10.7676Z" stroke-width="0.769115" stroke="currentColor"/>
+        <path d="M15.8609 10.4743C15.8609 13.2853 13.5821 15.564 10.7712 15.564C7.96018 15.564 5.68143 13.2853 5.68143 10.4743C5.68143 7.66331 7.96018 5.38456 10.7712 5.38456C13.5821 5.38456 15.8609 7.66331 15.8609 10.4743Z" stroke-width="0.769115" stroke="currentColor"/>
+        <path d="M10.8646 0.769115L10.8646 20.7661" stroke-width="0.769115" stroke="currentColor"/>
+        <path d="M0.769115 10.3846L20.7661 10.3846" stroke-width="0.769115" stroke="currentColor"/>
+      </svg>
+    </button>
     <p class="bio">Vanök Regular — a graphic designer and art director based in Belgrad, Serbia</p>
     <p class="soon">Website soon</p>
     <div class="sign">
-      <img class="sign-line" src="design/stub/line.svg" alt="">
+      <div class="sign-line"></div>
       <p>sign here</p>
     </div>
   </section>
   <div id="sign-host"></div>
+<script>
+  (function () {
+    var themes = ['0', '1', '2'];
+    var root = document.documentElement;
+    if (!root.dataset.theme) root.dataset.theme = '0';
+    function cycle(event) {
+      event.preventDefault();
+      var i = themes.indexOf(root.dataset.theme || '0');
+      if (i < 0) i = 0;
+      root.dataset.theme = themes[(i + 1) % themes.length];
+      root.dispatchEvent(new CustomEvent('vanok-theme'));
+    }
+    var buttons = document.querySelectorAll('.crosshair');
+    for (var n = 0; n < buttons.length; n++) buttons[n].addEventListener('click', cycle);
+  })();
+</script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -977,7 +1064,15 @@ function mountSignStamp(host) {
       lastColor = cast.color;
     }
     const imprint = list.find((item) => item.file === cast.file) || list[0];
-    return { ...imprint, bodyHex: cast.hex };
+    const themed = themeHex();
+    return { ...imprint, castHex: cast.hex, bodyHex: themed == null ? cast.hex : themed };
+  }
+
+  function themeHex() {
+    const theme = document.documentElement.dataset.theme || '0';
+    if (theme === '1') return 0x8a7e59;
+    if (theme === '2') return 0xe3f4e8;
+    return null;
   }
 
   function sampleShot(point, rig, kind) {
@@ -1012,8 +1107,14 @@ function mountSignStamp(host) {
       mark.el.style.filter = rig.blur > 0.01 ? `blur(${rig.blur}px)` : 'none';
       const rot = mark.kind === 'apple' ? rig.pressY - mark.rot : mark.rot;
       mark.el.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
-      mark.dye.style.opacity = String(rig.tintAmount);
-      mark.dye.style.background = rig.tint;
+      const themed = themeHex();
+      if (themed == null) {
+        mark.dye.style.opacity = String(rig.tintAmount);
+        mark.dye.style.background = rig.tint;
+      } else {
+        mark.dye.style.opacity = '1';
+        mark.dye.style.background = '#' + themed.toString(16).padStart(6, '0');
+      }
     }
   }
 
@@ -1229,7 +1330,7 @@ function mountSignStamp(host) {
   function onClick(e) {
     if (!alive || e.button) return;
     const blocked = e.target && e.target.closest && e.target.closest(
-      '.stamp-panel, .apple-light'
+      '.stamp-panel, .apple-light, .crosshair'
     );
     if (blocked) return;
     if (phase !== 'hidden' && phase !== 'rest') return;
@@ -1320,8 +1421,18 @@ function mountSignStamp(host) {
     renderer.render(scene, camera);
   });
 
+  function applyThemeInk() {
+    if (shot && shot.castHex != null) {
+      const themed = themeHex();
+      shot.bodyHex = themed == null ? shot.castHex : themed;
+    }
+    paintMarks();
+  }
+  document.documentElement.addEventListener('vanok-theme', applyThemeInk);
+
   return () => {
     alive = false;
+    document.documentElement.removeEventListener('vanok-theme', applyThemeInk);
     removeEventListener('click', onClick, true);
     removeEventListener('keydown', onKey);
     renderer.setAnimationLoop(null);
