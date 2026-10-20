@@ -166,9 +166,12 @@
     white-space: normal;
   }
 
+  /* Bottom row follows the visual viewport. The 812 frame does not grow
+     with a taller phone, so a top offset would float above the screen. */
   .mob .soon {
+    position: fixed;
     right: calc(24 * var(--k));
-    top: calc(768 * var(--k));
+    bottom: calc(24 * var(--k));
     height: calc(20 * var(--k));
     display: flex;
     align-items: center;
@@ -178,8 +181,10 @@
   }
 
   .mob .crosshair {
+    position: fixed;
     left: calc(24 * var(--k));
-    top: calc((768 + (20 - 21.535) / 2) * var(--k));
+    top: auto;
+    bottom: calc((24 + (20 - 21.535) / 2) * var(--k));
     width: calc(21.535 * var(--k));
     height: calc(21.535 * var(--k));
   }
