@@ -1295,6 +1295,7 @@ function mountSignStamp(host) {
   }
 
   function start(point) {
+    if (typeof globalThis.__vanokAppleGesture === 'function' && globalThis.__vanokAppleGesture()) return;
     const kind = pressN % 2 === 0 ? 'stamp' : 'apple';
     const source = kindReady(kind);
     if (!source) {
@@ -1655,8 +1656,40 @@ function mountViewportApple() {
   const axisX = new THREE.Vector3(1, 0, 0);
   const axisUp = new THREE.Vector3(0, 0, -1);
   const GAZE = 8 * Math.PI / 180;
+  const DRAG_LIMIT = 18 * Math.PI / 180;
+  const DRAG_PX = 120;
+  const raycaster = new THREE.Raycaster();
+  const pointerNdc = new THREE.Vector2();
+  const drag = {
+    active: false,
+    blockStamp: false,
+    pointerId: -1,
+    x0: 0,
+    y0: 0,
+    yaw0: 0,
+    pitch0: 0,
+    yaw: 0,
+    pitch: 0,
+  };
+  let dragClock = performance.now();
+  let dragBlockToken = 0;
+  globalThis.__vanokAppleGesture = () => drag.blockStamp;
+
+  function clampDrag(angle) {
+    return Math.max(-DRAG_LIMIT, Math.min(DRAG_LIMIT, angle));
+  }
 
   function followPointer() {
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (now - dragClock) / 1000));
+    dragClock = now;
+    if (!drag.active) {
+      const k = 1 - Math.exp(-dt * 8);
+      drag.yaw += -drag.yaw * k;
+      drag.pitch += -drag.pitch * k;
+      if (Math.abs(drag.yaw) < 0.0004) drag.yaw = 0;
+      if (Math.abs(drag.pitch) < 0.0004) drag.pitch = 0;
+    }
     gaze.sx += (gaze.x - gaze.sx) * 0.08;
     gaze.sy += (gaze.y - gaze.sy) * 0.08;
     gazeEuler.set(
@@ -1665,8 +1698,8 @@ function mountViewportApple() {
       VIEW_APPLE.rotZ * Math.PI / 180,
     );
     gazeBase.setFromEuler(gazeEuler);
-    gazePitch.setFromAxisAngle(axisX, gaze.sy * GAZE);
-    gazeYaw.setFromAxisAngle(axisUp, gaze.sx * GAZE);
+    gazePitch.setFromAxisAngle(axisX, gaze.sy * GAZE + drag.pitch);
+    gazeYaw.setFromAxisAngle(axisUp, gaze.sx * GAZE + drag.yaw);
     gazeYaw.multiply(gazePitch);
     tilt.quaternion.copy(gazeYaw).multiply(gazeBase);
     tilt.updateMatrixWorld(true);
@@ -1685,6 +1718,69 @@ function mountViewportApple() {
   function onPointerLeave() {
     gaze.x = 0;
     gaze.y = 0;
+  }
+
+  function hitsViewportApple(event) {
+    if (!appleModel) return false;
+    const w = Math.max(innerWidth, 1);
+    const h = Math.max(innerHeight, 1);
+    pointerNdc.x = (event.clientX / w) * 2 - 1;
+    pointerNdc.y = -((event.clientY / h) * 2 - 1);
+    raycaster.setFromCamera(pointerNdc, camera);
+    tilt.updateMatrixWorld(true);
+    return raycaster.intersectObject(appleModel, true).length > 0;
+  }
+
+  function uiOwnsPointer(event) {
+    const el = event.target;
+    return !!(el && el.closest && el.closest('.crosshair, .stamp-panel, .apple-light, button, input, select, textarea, label'));
+  }
+
+  function holdStampForAppleGesture() {
+    drag.blockStamp = true;
+    dragBlockToken += 1;
+  }
+
+  function releaseStampAfterAppleGesture() {
+    const token = dragBlockToken;
+    setTimeout(() => {
+      if (token === dragBlockToken && !drag.active) drag.blockStamp = false;
+    }, 0);
+  }
+
+  function onApplePointerDown(event) {
+    if (!alive || drag.active) return;
+    if (event.button !== 0) return;
+    if (event.pointerType === 'touch' && event.isPrimary === false) return;
+    if (uiOwnsPointer(event)) return;
+    if (!hitsViewportApple(event)) return;
+    drag.active = true;
+    drag.pointerId = event.pointerId;
+    drag.x0 = event.clientX;
+    drag.y0 = event.clientY;
+    drag.yaw0 = drag.yaw;
+    drag.pitch0 = drag.pitch;
+    holdStampForAppleGesture();
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function onApplePointerMove(event) {
+    if (!drag.active || event.pointerId !== drag.pointerId) return;
+    if (event.pointerType === 'mouse' && (event.buttons & 1) === 0) {
+      onApplePointerUp(event);
+      return;
+    }
+    const dx = event.clientX - drag.x0;
+    const dy = event.clientY - drag.y0;
+    drag.yaw = clampDrag(drag.yaw0 + (dx / DRAG_PX) * DRAG_LIMIT);
+    drag.pitch = clampDrag(drag.pitch0 + (dy / DRAG_PX) * DRAG_LIMIT);
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function onApplePointerUp(event) {
+    if (!drag.active || event.pointerId !== drag.pointerId) return;
+    drag.active = false;
+    releaseStampAfterAppleGesture();
   }
 
   function applySurfaceLight(lit) {
@@ -1994,6 +2090,10 @@ function mountViewportApple() {
   });
   addEventListener('pointermove', onPointerMove);
   addEventListener('pointerleave', onPointerLeave);
+  addEventListener('pointerdown', onApplePointerDown, { capture: true, passive: false });
+  addEventListener('pointermove', onApplePointerMove, { passive: false });
+  addEventListener('pointerup', onApplePointerUp);
+  addEventListener('pointercancel', onApplePointerUp);
 
   new GLTFLoader().load(APPLE_FILE, (gltf) => {
     if (!alive) return;
@@ -2036,6 +2136,9 @@ function mountViewportApple() {
       shading,
       gazeX: gaze.sx,
       gazeY: gaze.sy,
+      dragYaw: drag.yaw * 180 / Math.PI,
+      dragPitch: drag.pitch * 180 / Math.PI,
+      dragOn: drag.active,
       light: { x: key.position.x, y: key.position.y, z: key.position.z },
       keyIntensity: key.intensity,
       fillIntensity: fill.intensity,
@@ -2061,6 +2164,11 @@ function mountViewportApple() {
     removeEventListener('resize', applyKeyLightAndPlace);
     removeEventListener('pointermove', onPointerMove);
     removeEventListener('pointerleave', onPointerLeave);
+    removeEventListener('pointerdown', onApplePointerDown, true);
+    removeEventListener('pointermove', onApplePointerMove);
+    removeEventListener('pointerup', onApplePointerUp);
+    removeEventListener('pointercancel', onApplePointerUp);
+    if (globalThis.__vanokAppleGesture) delete globalThis.__vanokAppleGesture;
     renderer.setAnimationLoop(null);
     pmrem.dispose();
     renderer.dispose();
