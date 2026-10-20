@@ -313,18 +313,6 @@
     pointer-events: none;
   }
   .apple-view canvas { display: block; width: 100%; height: 100%; }
-  .apple-light-open {
-    position: fixed;
-    z-index: 41;
-    left: 16px;
-    bottom: 16px;
-    border: 1px solid #0c6df4;
-    background: #d7d7d7;
-    color: #0c6df4;
-    font: 12px/1.2 Arial, "Helvetica Neue", Helvetica, sans-serif;
-    padding: 6px 10px;
-    cursor: pointer;
-  }
   .apple-light {
     position: fixed;
     z-index: 42;
@@ -1241,7 +1229,7 @@ function mountSignStamp(host) {
   function onClick(e) {
     if (!alive || e.button) return;
     const blocked = e.target && e.target.closest && e.target.closest(
-      '.stamp-panel, .apple-light, .apple-light-open'
+      '.stamp-panel, .apple-light'
     );
     if (blocked) return;
     if (phase !== 'hidden' && phase !== 'rest') return;
@@ -1634,12 +1622,6 @@ function mountViewportApple() {
     if (mapHint) mapHint.hidden = !map;
   }
 
-  const openBtn = document.createElement('button');
-  openBtn.type = 'button';
-  openBtn.className = 'apple-light-open';
-  openBtn.textContent = 'Яблоко · L';
-  document.body.appendChild(openBtn);
-
   const panel = document.createElement('aside');
   panel.className = 'apple-light';
   panel.hidden = !VIEW_APPLE.panelOpen;
@@ -1660,7 +1642,6 @@ function mountViewportApple() {
     panel.hidden = !open;
   }
   function togglePanel() { setOpen(panel.hidden); }
-  openBtn.addEventListener('click', togglePanel);
   close.addEventListener('click', () => setOpen(false));
 
   function addHeading(text, parent = panel) {
@@ -1910,7 +1891,6 @@ function mountViewportApple() {
     pmrem.dispose();
     renderer.dispose();
     host.remove();
-    openBtn.remove();
     panel.remove();
     if (globalThis.__viewportApple) delete globalThis.__viewportApple;
   };
