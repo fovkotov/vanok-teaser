@@ -488,6 +488,50 @@
     padding: 7px 10px;
     cursor: pointer;
   }
+
+  /* Intro plays on the real sign line. The label follows it. Everything else waits. */
+  .sign-line {
+    transform-origin: center center;
+    animation: vanok-sign-open 640ms ease both;
+  }
+  @keyframes vanok-sign-open {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .sign p {
+    animation: vanok-sign-label 400ms ease 480ms both;
+  }
+  @keyframes vanok-sign-label {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  html.page-ready .sign-line,
+  html.page-ready .sign p { animation: none; }
+  html.page-ready .sign-line { transform: scaleX(1); }
+  html.page-ready .sign p { opacity: 1; }
+
+  .vanok,
+  .regular,
+  .lettering,
+  .bio,
+  .soon,
+  .crosshair,
+  #sign-host,
+  .apple-view {
+    opacity: 0;
+    transition: opacity 500ms ease;
+  }
+  html.page-ready .vanok,
+  html.page-ready .regular,
+  html.page-ready .lettering,
+  html.page-ready .bio,
+  html.page-ready .soon,
+  html.page-ready .crosshair,
+  html.page-ready #sign-host,
+  html.page-ready .apple-view.apple-shown {
+    opacity: 1;
+  }
+  html:not(.page-ready) .crosshair { pointer-events: none; }
 </style>
 </head>
 <body>
@@ -537,6 +581,12 @@
     var themes = ['0', '1', '2'];
     var root = document.documentElement;
     if (!root.dataset.theme) root.dataset.theme = '0';
+    window.__vanokIntroT0 = performance.now();
+    setTimeout(function () {
+      if (root.classList.contains('page-ready')) return;
+      root.classList.add('page-ready');
+      window.__vanokStampsAt = performance.now() + 500;
+    }, 8000);
     function cycle(event) {
       event.preventDefault();
       var i = themes.indexOf(root.dataset.theme || '0');
@@ -586,6 +636,21 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+const gltfLoads = new Map();
+function loadGltf(url) {
+  let job = gltfLoads.get(url);
+  if (!job) {
+    job = new Promise((resolve) => {
+      new GLTFLoader().load(url, (gltf) => resolve(gltf), undefined, () => resolve(null));
+    });
+    gltfLoads.set(url, job);
+  }
+  return job;
+}
+loadGltf('models/apple_green_quaternius.glb');
+loadGltf('models/apple_half_green.glb');
+loadGltf('models/stamp_round.glb');
 
 const pageScroll = { boost: 15 };
 
@@ -708,6 +773,55 @@ const APPLE_IMPRINTS = [
   { file: 'apple-02.png', src: 'design/stamps/apple-02.png?v=302' },
   { file: 'apple-green.png', src: 'design/stamps/apple-green.png?v=300b' },
 ];
+
+function decodeIntroImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const finish = () => resolve();
+    img.onload = () => {
+      if (typeof img.decode === 'function') img.decode().then(finish, finish);
+      else finish();
+    };
+    img.onerror = finish;
+    img.src = src;
+  });
+}
+
+const INTRO_BEAT_MS = 1000;
+const INTRO_FADE_MS = 500;
+const INTRO_LIMIT_MS = 8000;
+
+function revealTeaser() {
+  const root = document.documentElement;
+  if (root.classList.contains('page-ready')) return;
+  root.classList.add('page-ready');
+  window.__vanokStampsAt = performance.now() + INTRO_FADE_MS;
+}
+
+const introImages = [
+  ...STAMP_IMPRINTS.map((item) => item.src),
+  ...APPLE_IMPRINTS.map((item) => item.src),
+  'design/stub/wordmark-vanok.svg',
+  'design/stub/wordmark-regular.svg',
+  'design/stub/wordmark-8a7e59.svg',
+  'design/stub/wordmark-e3f4e8.svg',
+  'design/stub/crosshair.svg',
+  'design/stub/line.svg',
+];
+const introT0 = window.__vanokIntroT0 || performance.now();
+Promise.race([
+  Promise.all([
+    loadGltf('models/apple_green_quaternius.glb'),
+    loadGltf('models/apple_half_green.glb'),
+    loadGltf('models/stamp_round.glb'),
+    ...introImages.map(decodeIntroImage),
+  ]),
+  new Promise((resolve) => setTimeout(resolve, INTRO_LIMIT_MS)),
+]).then(() => {
+  const wait = Math.max(0, INTRO_BEAT_MS - (performance.now() - introT0));
+  setTimeout(revealTeaser, wait);
+});
+
 const STAMP_CASTS = [
   { file: 'stamp-01.png', hex: 0x0c70f4, color: 'blue' },
   { file: 'stamp-02.png', hex: 0xff91f8, color: 'pink' },
@@ -1359,6 +1473,7 @@ function mountSignStamp(host) {
   }
 
   function start(point) {
+    if (!(performance.now() >= (window.__vanokStampsAt || Infinity))) return;
     if (typeof globalThis.__vanokAppleGesture === 'function' && globalThis.__vanokAppleGesture()) return;
     const kind = pressN % 2 === 0 ? 'stamp' : 'apple';
     const source = kindReady(kind);
@@ -1477,13 +1592,28 @@ function mountSignStamp(host) {
     start({ px: x - hr.left, py: y - hr.top });
   }
 
+  let introGesture = false;
+  function noteIntroGesture() {
+    introGesture = !(performance.now() >= (window.__vanokStampsAt || Infinity));
+  }
+  addEventListener('pointerdown', noteIntroGesture, true);
+  addEventListener('touchstart', noteIntroGesture, true);
+
   function onPointerUp(e) {
+    if (introGesture || !(performance.now() >= (window.__vanokStampsAt || Infinity))) {
+      introGesture = true;
+      return;
+    }
     if (stampBlocked(e)) return;
     stampGesture = Date.now();
     dropStamp(e);
   }
 
   function onClick(e) {
+    if (introGesture || !(performance.now() >= (window.__vanokStampsAt || Infinity))) {
+      introGesture = false;
+      return;
+    }
     if (Date.now() - stampGesture < 700) return;
     if (stampBlocked(e)) return;
     dropStamp(e);
@@ -1550,12 +1680,12 @@ function mountSignStamp(host) {
     drainQueue();
   }
 
-  new GLTFLoader().load('models/stamp_round.glb', (gltf) => {
-    if (!alive) return;
+  loadGltf('models/stamp_round.glb').then((gltf) => {
+    if (!alive || !gltf) return;
     mountTool('stamp', fitTopDown(prepareStamp(gltf.scene)));
   });
-  new GLTFLoader().load('models/apple_half_green.glb', (gltf) => {
-    if (!alive) return;
+  loadGltf('models/apple_half_green.glb').then((gltf) => {
+    if (!alive || !gltf) return;
     mountTool('apple', prepareHalfApple(gltf));
   });
 
@@ -1583,6 +1713,8 @@ function mountSignStamp(host) {
     alive = false;
     while (flights.length) releaseFlight(flights.pop());
     document.documentElement.removeEventListener('vanok-theme', applyThemeInk);
+    removeEventListener('pointerdown', noteIntroGesture, true);
+    removeEventListener('touchstart', noteIntroGesture, true);
     if (window.PointerEvent) removeEventListener('pointerup', onPointerUp, true);
     else removeEventListener('touchend', onPointerUp, true);
     removeEventListener('click', onClick, true);
@@ -1839,6 +1971,7 @@ function mountViewportApple() {
   }
 
   function onApplePointerDown(event) {
+    if (!document.documentElement.classList.contains('page-ready')) return;
     if (!alive || drag.active) return;
     if (event.button !== 0) return;
     if (event.pointerType === 'touch' && event.isPrimary === false) return;
@@ -2185,8 +2318,8 @@ function mountViewportApple() {
   addEventListener('pointerup', onApplePointerUp);
   addEventListener('pointercancel', onApplePointerUp);
 
-  new GLTFLoader().load(APPLE_FILE, (gltf) => {
-    if (!alive) return;
+  loadGltf(APPLE_FILE).then((gltf) => {
+    if (!alive || !gltf) return;
     const fitted = prepareApple(gltf, APPLE_GREEN);
     fitted.traverse((node) => {
       if (!node.isMesh) return;
@@ -2199,6 +2332,7 @@ function mountViewportApple() {
     model.add(fitted);
     appleModel = model;
     tilt.add(model);
+    host.classList.add('apple-shown');
     applyKeyLightAndPlace();
   });
 
