@@ -9,16 +9,19 @@
   var POOL_KEY = 'vanok_signature_pool_v1';
   var API = '/api/signatures';
   var PRESETS = [
-    { id: 'preset-apple-01', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-01.png', colorName: 'blue', castHex: 0x0c6df4 },
-    { id: 'preset-stamp-01', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/stamp-01.png', colorName: 'blue', castHex: 0x0c70f4 },
-    { id: 'preset-apple-02', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-02.png', colorName: 'pink', castHex: 0xff91f8 },
-    { id: 'preset-stamp-02', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/stamp-02.png', colorName: 'pink', castHex: 0xff91f8 },
-    { id: 'preset-apple-green', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-green.png', colorName: 'green', castHex: 0x67c514 },
-    { id: 'preset-stamp-green', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/stamp-green.png', colorName: 'green', castHex: 0x67c514 },
     { id: 'preset-apple-281', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-281.png', colorName: 'blue', castHex: 0x0c6df4 },
     { id: 'preset-apple-282', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-282.png', colorName: 'pink', castHex: 0xff91f8 },
     { id: 'preset-apple-283', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-283.png', colorName: 'yellow', castHex: 0xffcc00 }
   ];
+  var REMOVED_IDS = {
+    'sig-mvipeu03-ril8': 1,
+    'sig-mvipa8wh-qk2b': 1,
+    'sig-mvioj76c-6nf4': 1,
+    'sig-mvilqgeo-bzqn': 1,
+    'sig-mvil8zgt-atu1': 1,
+    'sig-mvijbazk-aqoh': 1,
+    'sig-mvie2wct-9m0d': 1
+  };
   var VB = {
     stamp: { w: 326, h: 326 },
     apple: { w: 323.17, h: 327.409 }
@@ -70,13 +73,18 @@
       }
       var raw = localStorage.getItem(KEY);
       var parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed.filter(validItem) : [];
+      if (!Array.isArray(parsed)) return [];
+      var kept = parsed.filter(validItem);
+      if (kept.length !== parsed.length) {
+        try { localStorage.setItem(KEY, JSON.stringify(kept)); } catch (err) {}
+      }
+      return kept;
     } catch (err) {
       return [];
     }
   }
   function validItem(item) {
-    return item && (item.kind === 'stamp' || item.kind === 'apple') && typeof item.src === 'string' && item.id;
+    return item && (item.kind === 'stamp' || item.kind === 'apple') && typeof item.src === 'string' && item.id && !REMOVED_IDS[item.id];
   }
   function saveLocal() {
     try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (err) {}
@@ -912,6 +920,10 @@
     if (!control) return;
     event.preventDefault();
     event.stopPropagation();
+    if (control.classList.contains('sig-close')) {
+      closeModal();
+      return;
+    }
     if (editor.classList.contains('is-on')) openShapes();
     else if (shapes.classList.contains('is-on')) openLibrary();
     else closeModal();
