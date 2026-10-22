@@ -9,6 +9,12 @@
   var POOL_KEY = 'vanok_signature_pool_v1';
   var API = '/api/signatures';
   var PRESETS = [
+    { id: 'preset-apple-01', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-01.png', colorName: 'blue', castHex: 0x0c6df4 },
+    { id: 'preset-stamp-01', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/stamp-01.png', colorName: 'blue', castHex: 0x0c70f4 },
+    { id: 'preset-apple-02', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-02.png', colorName: 'pink', castHex: 0xff91f8 },
+    { id: 'preset-stamp-02', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/stamp-02.png', colorName: 'pink', castHex: 0xff91f8 },
+    { id: 'preset-apple-green', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-green.png', colorName: 'green', castHex: 0x67c514 },
+    { id: 'preset-stamp-green', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/stamp-green.png', colorName: 'green', castHex: 0x67c514 },
     { id: 'preset-apple-281', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-281.png', colorName: 'blue', castHex: 0x0c6df4 },
     { id: 'preset-apple-282', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-282.png', colorName: 'pink', castHex: 0xff91f8 },
     { id: 'preset-apple-283', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/apple-283.png', colorName: 'yellow', castHex: 0xffcc00 }
@@ -143,7 +149,9 @@
     pool: function (which) {
       var mine = userItems().filter(function (item) { return item.kind === which && listedSeal(item); });
       var extra = PRESETS.filter(function (item) {
-        return item.kind === which && adopted[item.id] && listedSeal(item);
+        if (item.kind !== which) return false;
+        if (STOCK_FILES[fileName(item.src)]) return true;
+        return adopted[item.id] && listedSeal(item);
       });
       return mine.concat(extra);
     },
@@ -950,7 +958,11 @@
     return card;
   }
   function catalog() {
-    return userItems().filter(listedSeal).concat(PRESETS.filter(listedSeal));
+    var presets = PRESETS.filter(function (item) {
+      if (STOCK_FILES[fileName(item.src)]) return true;
+      return listedSeal(item);
+    });
+    return userItems().filter(listedSeal).concat(presets);
   }
   function addCard() {
     var button = document.createElement('button');
