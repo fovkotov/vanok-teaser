@@ -791,6 +791,18 @@
       cards[i].classList.toggle('is-armed', !!armed && cards[i].dataset.id === armed);
     }
   }
+  function placeLibrarySeal(item) {
+    ensurePooled(item);
+    closeModal();
+    var vw = window.innerWidth || 1;
+    var vh = window.innerHeight || 1;
+    var reach = vh * 0.15 + 24;
+    var mx = Math.min(reach, vw * 0.32);
+    var my = Math.min(reach, vh * 0.32);
+    var x = mx + Math.random() * Math.max(1, vw - mx * 2);
+    var y = my + Math.random() * Math.max(1, vh - my * 2);
+    if (typeof window.__vanokPlaceSeal === 'function') window.__vanokPlaceSeal(item, x, y);
+  }
   grid.addEventListener('click', function (event) {
     if (event.target.closest('.sig-add')) {
       event.preventDefault();
@@ -804,16 +816,7 @@
     event.stopPropagation();
     var item = findCatalogItem(card.dataset.id);
     if (!item) return;
-    ensurePooled(item);
-    closeModal();
-    var vw = window.innerWidth || 1;
-    var vh = window.innerHeight || 1;
-    var reach = vh * 0.15 + 24;
-    var mx = Math.min(reach, vw * 0.32);
-    var my = Math.min(reach, vh * 0.32);
-    var x = mx + Math.random() * Math.max(1, vw - mx * 2);
-    var y = my + Math.random() * Math.max(1, vh - my * 2);
-    if (typeof window.__vanokPlaceSeal === 'function') window.__vanokPlaceSeal(item, x, y);
+    placeLibrarySeal(item);
   });
   var flightArt = null;
   var flightHome = null;
@@ -1154,7 +1157,6 @@
       createdAt: Date.now()
     };
     items.unshift(item);
-    store.arm(item);
     texts[madeKind] = '';
     strokes[madeKind] = [];
     photos[madeKind] = null;
@@ -1169,7 +1171,7 @@
     paintText();
     placeCaret();
     try { input.blur(); } catch (err) {}
-    openLibrary(item.id);
+    placeLibrarySeal(item);
     setTimeout(function () {
       saveLocal();
       postItem(item);
