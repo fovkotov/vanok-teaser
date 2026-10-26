@@ -2699,10 +2699,10 @@ function mountViewportApple() {
       z: VIEW_APPLE.rotZ + src.rotZ * left,
     };
   }
-  // A click turns the apple one full Y revolution and eases back onto the
+  // A click flips the apple one full turn on local X and eases back onto the
   // resting euler. The offset lives in the pose followPointer writes every
   // frame; a later quaternion copy would otherwise freeze the apple.
-  const APPLE_SPIN_MS = 800;
+  const APPLE_SPIN_MS = 2000;
   let appleSpin = null;
   function appleSpinDegrees() {
     if (!appleSpin) return 0;
@@ -2719,7 +2719,7 @@ function mountViewportApple() {
   }
   function appleShownRot() {
     const rot = appleEnterRot();
-    rot.y += appleSpinDegrees();
+    rot.x += appleSpinDegrees();
     return rot;
   }
   function captureAppleEnter() {
@@ -3527,6 +3527,8 @@ function mountViewportApple() {
         verts: node.geometry?.attributes?.position?.count ?? 0,
       };
     });
+    const pose = appleShownRot();
+    const spinY = pose.y - appleEnterRot().y;
     return {
       ...VIEW_APPLE,
       shading,
@@ -3535,7 +3537,11 @@ function mountViewportApple() {
       dragYaw: drag.yaw * 180 / Math.PI,
       dragPitch: drag.pitch * 180 / Math.PI,
       dragOn: drag.active,
-      spinDeg: Math.round(appleSpinDegrees() * 10) / 10,
+      spinDeg: Math.round((pose.x - appleEnterRot().x) * 10) / 10,
+      spinY: Math.round(spinY * 10) / 10,
+      poseX: Math.round(pose.x * 10) / 10,
+      poseY: Math.round(pose.y * 10) / 10,
+      poseZ: Math.round(pose.z * 10) / 10,
       quatX: tilt.quaternion.x,
       quatY: tilt.quaternion.y,
       quatZ: tilt.quaternion.z,
