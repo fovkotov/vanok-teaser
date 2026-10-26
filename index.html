@@ -2699,6 +2699,29 @@ function mountViewportApple() {
       z: VIEW_APPLE.rotZ + src.rotZ * left,
     };
   }
+  // A click turns the apple one full Y revolution and eases back onto the
+  // resting euler. The offset lives in the pose followPointer writes every
+  // frame; a later quaternion copy would otherwise freeze the apple.
+  const APPLE_SPIN_MS = 800;
+  let appleSpin = null;
+  function appleSpinDegrees() {
+    if (!appleSpin) return 0;
+    const t = (performance.now() - appleSpin.start) / APPLE_SPIN_MS;
+    if (t >= 1) {
+      appleSpin = null;
+      return 0;
+    }
+    return easeSlow(t) * 360;
+  }
+  function startAppleSpin() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    appleSpin = { start: performance.now() };
+  }
+  function appleShownRot() {
+    const rot = appleEnterRot();
+    rot.y += appleSpinDegrees();
+    return rot;
+  }
   function captureAppleEnter() {
     return {
       fromX: fly.xOff,
@@ -2782,6 +2805,7 @@ function mountViewportApple() {
   const gazeEuler = new THREE.Euler(0, 0, 0, 'XYZ');
   const gazePitch = new THREE.Quaternion();
   const gazeYaw = new THREE.Quaternion();
+  const shownEuler = new THREE.Euler(0, 0, 0, 'XYZ');
   const axisX = new THREE.Vector3(1, 0, 0);
   const axisUp = new THREE.Vector3(0, 0, -1);
   const GAZE = 8 * Math.PI / 180;
@@ -2821,7 +2845,7 @@ function mountViewportApple() {
     }
     gaze.sx += (gaze.x - gaze.sx) * 0.08;
     gaze.sy += (gaze.y - gaze.sy) * 0.08;
-    const enterRot = appleEnterRot();
+    const enterRot = appleShownRot();
     gazeEuler.set(
       enterRot.x * Math.PI / 180,
       enterRot.y * Math.PI / 180,
@@ -2885,6 +2909,7 @@ function mountViewportApple() {
     if (event.pointerType === 'touch' && event.isPrimary === false) return;
     if (uiOwnsPointer(event)) return;
     if (!hitsViewportApple(event)) return;
+    startAppleSpin();
     drag.active = true;
     drag.pointerId = event.pointerId;
     drag.x0 = event.clientX;
@@ -2958,7 +2983,7 @@ function mountViewportApple() {
       0,
       ((VIEW_APPLE.topPx + enterY) / h) * viewH - viewH / 2,
     );
-    const enterRot = appleEnterRot();
+    const enterRot = appleShownRot();
     tilt.rotation.set(
       enterRot.x * Math.PI / 180,
       enterRot.y * Math.PI / 180,
@@ -3510,6 +3535,14 @@ function mountViewportApple() {
       dragYaw: drag.yaw * 180 / Math.PI,
       dragPitch: drag.pitch * 180 / Math.PI,
       dragOn: drag.active,
+      spinDeg: Math.round(appleSpinDegrees() * 10) / 10,
+      quatX: tilt.quaternion.x,
+      quatY: tilt.quaternion.y,
+      quatZ: tilt.quaternion.z,
+      quatW: tilt.quaternion.w,
+      shownX: (shownEuler.setFromQuaternion(tilt.quaternion, 'XYZ'), Math.round(shownEuler.x * 180 / Math.PI * 10) / 10),
+      shownY: Math.round(shownEuler.y * 180 / Math.PI * 10) / 10,
+      shownZ: Math.round(shownEuler.z * 180 / Math.PI * 10) / 10,
       light: { x: key.position.x, y: key.position.y, z: key.position.z },
       keyIntensity: key.intensity,
       fillIntensity: fill.intensity,
