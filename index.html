@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="3">
+<html lang="en" data-theme="0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,8 +29,8 @@
     --bg: linear-gradient(180deg, #A59D90 0%, #02DD67 100%);
   }
   html[data-theme="3"] {
-    --blue: rgba(255, 255, 255, 0.8);
-    --bg: linear-gradient(180deg, #a2bdce 0%, #8ea9ba 100%);
+    --blue: #ffffff;
+    --bg: #80a6bc;
   }
   html[data-theme="3"] .site-credits {
     color: rgba(255, 255, 255, 0.32);
@@ -176,10 +176,10 @@
     height: calc(var(--letter-w) * 135 / 619);
   }
   .desk .lettering-2 {
-    height: calc(var(--letter-w) * 109 / 619);
+    height: calc(var(--letter-w) * 82 / 702);
   }
   .desk .lettering-3 {
-    height: calc(var(--letter-w) * 233.007 / 702);
+    height: calc(var(--letter-w) * 124 / 702);
   }
 
   .sign { position: absolute; }
@@ -266,8 +266,8 @@
     width: calc(327 * var(--k));
   }
   .mob .lettering-1 { height: calc(71.32 * var(--k)); }
-  .mob .lettering-2 { height: calc(57.57 * var(--k)); }
-  .mob .lettering-3 { height: calc(327 * var(--k) * 233.007 / 702); }
+  .mob .lettering-2 { height: calc(327 * var(--k) * 82 / 702); }
+  .mob .lettering-3 { height: calc(327 * var(--k) * 124 / 702); }
 
   /* Sign line sits at y=465 on the 375×812 frame. Width scale only, so theme changes do not move it. */
   .mob .sign {
@@ -1181,8 +1181,8 @@
     <img class="vanok" src="design/stub/wordmark-vanok.svg" alt="">
     <img class="regular" src="design/stub/wordmark-regular.svg" alt="">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
-    <img class="lettering lettering-2" src="design/stub/wordmark-e3f4e8.svg" alt="">
-    <img class="lettering lettering-3" src="design/stub/wordmark-white.svg" alt="">
+    <img class="lettering lettering-2" src="design/stub/wordmark-green.svg" alt="">
+    <img class="lettering lettering-3" src="design/stub/wordmark-star.svg" alt="">
     <button type="button" class="crosshair" aria-label="Cycle theme">
       <svg preserveAspectRatio="none" overflow="visible" viewBox="0 0 21.5352 21.5352" fill="none" aria-hidden="true">
         <path d="M21.1507 10.7676C21.1507 16.502 16.502 21.1507 10.7676 21.1507C5.03321 21.1507 0.384558 16.502 0.384558 10.7676C0.384558 5.03321 5.03321 0.384558 10.7676 0.384558C16.502 0.384558 21.1507 5.03321 21.1507 10.7676Z" stroke-width="0.769115" stroke="currentColor"/>
@@ -1205,8 +1205,8 @@
     <img class="vanok" src="design/stub/wordmark-vanok.svg" alt="">
     <img class="regular" src="design/stub/wordmark-regular.svg" alt="">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
-    <img class="lettering lettering-2" src="design/stub/wordmark-e3f4e8.svg" alt="">
-    <img class="lettering lettering-3" src="design/stub/wordmark-white.svg" alt="">
+    <img class="lettering lettering-2" src="design/stub/wordmark-green.svg" alt="">
+    <img class="lettering lettering-3" src="design/stub/wordmark-star.svg" alt="">
     <button type="button" class="crosshair" aria-label="Cycle theme">
       <svg preserveAspectRatio="none" overflow="visible" viewBox="0 0 21.5352 21.5352" fill="none" aria-hidden="true">
         <path d="M21.1507 10.7676C21.1507 16.502 16.502 21.1507 10.7676 21.1507C5.03321 21.1507 0.384558 16.502 0.384558 10.7676C0.384558 5.03321 5.03321 0.384558 10.7676 0.384558C16.502 0.384558 21.1507 5.03321 21.1507 10.7676Z" stroke-width="0.769115" stroke="currentColor"/>
@@ -1233,9 +1233,9 @@
   </div>
 <script>
   (function () {
-    var themes = ['0', '1', '2'];
+    var themes = ['0', '1', '2', '3'];
     var root = document.documentElement;
-    if (!root.dataset.theme) root.dataset.theme = '3';
+    if (!root.dataset.theme) root.dataset.theme = '0';
     window.__vanokIntroT0 = performance.now();
     setTimeout(function () {
       if (root.classList.contains('page-ready')) return;
@@ -1377,8 +1377,8 @@ const MODEL_TABS = [
 let modelTabId = '01';
 // Extra degrees on the apple-half flat print, stored per L model tab.
 // Placement already adds a random spin; this adds on top. Round stamps do not read this.
-// Tab 01 starts at 8°. low poly natural, detail, and mat start at 0.
-const appleImprintSpinByTab = { low: 0, '01': 8, detail: 0, mat: 0 };
+// Tab 01 starts at 10°. low poly natural, detail, and mat start at 0.
+const appleImprintSpinByTab = { low: 0, '01': 10, detail: 0, mat: 0 };
 let appleImprintSpin = appleImprintSpinByTab[modelTabId] ?? 0;
 let syncAppleImprintSpin = () => {};
 let repaintAppleImprints = () => {};
@@ -1572,6 +1572,144 @@ function applyPearl(root) {
     material.shadowSide = THREE.DoubleSide;
     material.vertexColors = false;
     material.userData.pearl = true;
+    node.material = material;
+    for (const old of prev) {
+      if (old && old !== material) old.dispose();
+    }
+  });
+}
+
+// Playground preset «хром»: MeshPhysicalMaterial, metalness 1, roughness 0.08,
+// envMapIntensity 1.4, clearcoat. No matcap and no file texture. The corner
+// apple and the stamping half are #56AE08. Each round stamp takes the dominant
+// opaque color of its own print (near-white and near-transparent pixels dropped).
+const CHROME_APPLE = 0x56ae08;
+const CHROME_ROUGH = 0.08;
+const CHROME_ENV = 1.4;
+const CHROME_WAIT = 0xe7eef5;
+let chromeOn = false;
+let paintChromeViewport = () => {};
+let refreshChromePrints = () => {};
+const chromePrintHex = new Map();
+
+function dominantOpaqueHex(img) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, w, h);
+  let data;
+  try {
+    data = ctx.getImageData(0, 0, w, h).data;
+  } catch (err) {
+    return null;
+  }
+  const buckets = new Map();
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a < 32) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (r > 245 && g > 245 && b > 245) continue;
+    const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = { n: 0, r: 0, g: 0, b: 0 };
+      buckets.set(key, bucket);
+    }
+    bucket.n += 1;
+    bucket.r += r;
+    bucket.g += g;
+    bucket.b += b;
+  }
+  let best = null;
+  for (const bucket of buckets.values()) {
+    if (!best || bucket.n > best.n) best = bucket;
+  }
+  if (!best || !best.n) return null;
+  const r = Math.round(best.r / best.n);
+  const g = Math.round(best.g / best.n);
+  const b = Math.round(best.b / best.n);
+  return (r << 16) | (g << 8) | b;
+}
+
+function queueChromeSample(src) {
+  if (!src || chromePrintHex.has(src) || chromePrintHex.has('pending:' + src)) return;
+  chromePrintHex.set('pending:' + src, 1);
+  const img = new Image();
+  img.onload = () => {
+    chromePrintHex.delete('pending:' + src);
+    const hex = dominantOpaqueHex(img);
+    if (hex == null) return;
+    chromePrintHex.set(src, hex);
+    if (chromeOn) refreshChromePrints();
+  };
+  img.onerror = () => chromePrintHex.delete('pending:' + src);
+  img.src = src;
+}
+
+queueChromeSample('design/stamps/folder-42/blue.png');
+queueChromeSample('design/stamps/folder-42/pink.png');
+
+function chromeHexForShot(shot) {
+  if (!shot || shot.kind === 'apple' || shot.file === 'gren.png') return CHROME_APPLE;
+  const hex = chromePrintHex.get(shot.src);
+  if (hex == null) queueChromeSample(shot.src);
+  return hex == null ? null : hex;
+}
+
+function tintChrome(root, hex) {
+  if (!root || hex == null) return;
+  root.traverse((node) => {
+    if (!node.isMesh || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of mats) {
+      if (!material || !material.userData.chrome || !material.color) continue;
+      if (material.color.getHex() !== hex) material.color.setHex(hex);
+    }
+  });
+}
+
+function applyChrome(root, colorHex) {
+  if (!root || colorHex == null) return;
+  const color = new THREE.Color(colorHex);
+  root.traverse((node) => {
+    if (!node.isMesh || !node.material) return;
+    const prev = Array.isArray(node.material) ? node.material : [node.material];
+    if (prev.length && prev.every((material) => material && material.userData.chrome)) {
+      for (const material of prev) {
+        if (material && material.color) material.color.copy(color);
+      }
+      return;
+    }
+    let side = THREE.FrontSide;
+    for (const material of prev) {
+      if (material && material.side === THREE.DoubleSide) side = THREE.DoubleSide;
+    }
+    const material = new THREE.MeshPhysicalMaterial({
+      name: 'chrome',
+      color,
+      metalness: 1,
+      roughness: CHROME_ROUGH,
+      envMapIntensity: CHROME_ENV,
+      clearcoat: 0.35,
+      clearcoatRoughness: 0.04,
+      side,
+      flatShading: false,
+    });
+    material.map = null;
+    material.normalMap = null;
+    material.roughnessMap = null;
+    material.metalnessMap = null;
+    material.aoMap = null;
+    material.emissiveMap = null;
+    material.vertexColors = false;
+    material.userData.chrome = true;
     node.material = material;
     for (const old of prev) {
       if (old && old !== material) old.dispose();
@@ -1880,20 +2018,20 @@ function orientHalfCut(model) {
 
 // «sign here»: печать выезжает из-за нижнего края в точку клика, строго сверху,
 // оставляет оттиск там и уходит обратно вниз. G — настройки этого жеста, только на время вкладки.
-// Both modes draw the theme-01 set: two rounds and the apple.
+// Both modes draw the folder-42 set: two rounds and the apple.
 const STAMP_IMPRINTS = [
-  { file: 'blue.png', src: 'design/stamps/default-theme/blue.png' },
-  { file: 'blue-1.png', src: 'design/stamps/default-theme/blue-1.png' },
+  { file: 'blue.png', src: 'design/stamps/folder-42/blue.png' },
+  { file: 'pink.png', src: 'design/stamps/folder-42/pink.png' },
 ];
 const APPLE_IMPRINTS = [
-  { file: 'frame-310.png', src: 'design/stamps/default-theme/frame-310.png' },
+  { file: 'gren.png', src: 'design/stamps/folder-42/gren.png' },
 ];
 const KEY2_STAMP_IMPRINTS = [
-  { file: 'blue.png', src: 'design/stamps/default-theme/blue.png' },
-  { file: 'blue-1.png', src: 'design/stamps/default-theme/blue-1.png' },
+  { file: 'blue.png', src: 'design/stamps/folder-42/blue.png' },
+  { file: 'pink.png', src: 'design/stamps/folder-42/pink.png' },
 ];
 const KEY2_APPLE_IMPRINTS = [
-  { file: 'frame-310.png', src: 'design/stamps/default-theme/frame-310.png' },
+  { file: 'gren.png', src: 'design/stamps/folder-42/gren.png' },
 ];
 
 function decodeIntroImage(src) {
@@ -1926,8 +2064,8 @@ const introImages = [
   'design/stub/wordmark-vanok.svg',
   'design/stub/wordmark-regular.svg',
   'design/stub/wordmark-8a7e59.svg',
-  'design/stub/wordmark-e3f4e8.svg',
-  'design/stub/wordmark-white.svg',
+  'design/stub/wordmark-green.svg',
+  'design/stub/wordmark-star.svg',
   'design/stub/crosshair.svg',
   'design/stub/line.svg',
 ];
@@ -1946,25 +2084,25 @@ Promise.race([
 });
 
 const STAMP_CASTS = [
-  { file: 'blue.png', hex: 0x02ffab, color: 'mint' },
-  { file: 'blue-1.png', hex: 0x00fbff, color: 'cyan' },
+  { file: 'blue.png', hex: 0x0c6df4, color: 'blue' },
+  { file: 'pink.png', hex: 0xff91f8, color: 'pink' },
 ];
 const APPLE_CASTS = [
-  { file: 'frame-310.png', hex: 0xfcf52e, color: 'yellow' },
+  { file: 'gren.png', hex: 0x67c514, color: 'green' },
 ];
 const KEY2_STAMP_CASTS = [
-  { file: 'blue.png', hex: 0x02ffab, color: 'mint' },
-  { file: 'blue-1.png', hex: 0x00fbff, color: 'cyan' },
+  { file: 'blue.png', hex: 0x0c6df4, color: 'blue' },
+  { file: 'pink.png', hex: 0xff91f8, color: 'pink' },
 ];
 const KEY2_APPLE_CASTS = [
-  { file: 'frame-310.png', hex: 0xfcf52e, color: 'yellow' },
+  { file: 'gren.png', hex: 0x67c514, color: 'green' },
 ];
 const INK_FRAC = 505 / 539;
 const APPLE_INK_FRAC = 460 / 537;
 
-// G-panel «Свет второго стиля»: stamp, half, and the corner apple.
-// Key 2 applies these on low poly natural, 01, and detail. The mat tab
-// reads the same six numbers directly, whether or not key 2 is on.
+// G-panel «Свет второго стиля». On theme 3 the stamp and the half copy
+// appleAmbient / appleKey (the corner apple's live light) on every L tab.
+// Mat without theme 3 still reads stamp, half, and apple as six separate numbers.
 const iceLight = {
   stampAmbient: 2.95,
   stampKey: 5.60,
@@ -2306,7 +2444,10 @@ function mountSignStamp(host) {
   const pearlTab = document.createElement('button');
   pearlTab.type = 'button';
   pearlTab.textContent = 'Pearl MatCap';
-  tabs.append(stampTab, appleTab, pearlTab);
+  const chromeTab = document.createElement('button');
+  chromeTab.type = 'button';
+  chromeTab.textContent = 'хром';
+  tabs.append(stampTab, appleTab, pearlTab, chromeTab);
   const stampPane = document.createElement('div');
   stampPane.className = 'pane';
   const applePane = document.createElement('div');
@@ -2329,11 +2470,45 @@ function mountSignStamp(host) {
     for (let i = 0; i < flights.length; i++) applyPearl(flights[i].model);
     paintPearlViewport();
   }
+  function paintLiveChrome() {
+    applyChrome(appleModel, CHROME_APPLE);
+    applyChrome(stampModel, CHROME_WAIT);
+    for (let i = 0; i < flights.length; i++) {
+      const shot = flights[i].shot;
+      const hex = chromeHexForShot(shot);
+      applyChrome(flights[i].model, hex == null ? CHROME_WAIT : hex);
+    }
+    paintChromeViewport();
+  }
+  refreshChromePrints = () => {
+    if (!chromeOn) return;
+    for (let i = 0; i < flights.length; i++) {
+      if (flights[i].shot.kind !== 'stamp') continue;
+      const hex = chromePrintHex.get(flights[i].shot.src);
+      if (hex == null) continue;
+      applyChrome(flights[i].model, hex);
+    }
+  };
   pearlTab.addEventListener('click', () => {
     pearlOn = !pearlOn;
     pearlTab.classList.toggle('on', pearlOn);
-    if (pearlOn) paintLivePearl();
-    else {
+    if (pearlOn) {
+      chromeOn = false;
+      chromeTab.classList.remove('on');
+      paintLivePearl();
+    } else {
+      syncToolModels();
+      restoreViewportLook();
+    }
+  });
+  chromeTab.addEventListener('click', () => {
+    chromeOn = !chromeOn;
+    chromeTab.classList.toggle('on', chromeOn);
+    if (chromeOn) {
+      pearlOn = false;
+      pearlTab.classList.remove('on');
+      paintLiveChrome();
+    } else {
       syncToolModels();
       restoreViewportLook();
     }
@@ -2626,7 +2801,7 @@ function mountSignStamp(host) {
   }
 
   // Theme 2 recolours every ink. Theme 1 turns every ink white.
-  // Theme 3 and default mode both draw the theme-01 set.
+  // Theme 3 and default mode both draw the folder-42 prints.
   function themeHex(ink) {
     const theme = document.documentElement.dataset.theme || '0';
     if (theme === '2') return 0xe3f4e8;
@@ -2749,7 +2924,7 @@ function mountSignStamp(host) {
       if (!o.isMesh || !o.material) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) {
-        if (m.userData.shader01 || m.userData.keepTexture || m.userData.matte || m.userData.pearl) continue;
+        if (m.userData.shader01 || m.userData.keepTexture || m.userData.matte || m.userData.pearl || m.userData.chrome) continue;
         if (!m.userData.baseColor) {
           const snap = m.userData.teaserMat;
           m.userData.baseColor = new THREE.Color(snap ? snap.color : m.color.getHex());
@@ -2776,7 +2951,7 @@ function mountSignStamp(host) {
       if (!node.isMesh || !node.material) return;
       const mats = Array.isArray(node.material) ? node.material : [node.material];
       for (const material of mats) {
-        if (material.userData.shader01 || material.userData.keepTexture || material.userData.matte || material.userData.pearl) continue;
+        if (material.userData.shader01 || material.userData.keepTexture || material.userData.matte || material.userData.pearl || material.userData.chrome) continue;
         if (kind === 'apple') {
           if (material.name !== 'green' && material.name !== 'PaleGreen') continue;
           material.color.setHex(hex);
@@ -2805,6 +2980,7 @@ function mountSignStamp(host) {
         if (material.userData.keepTexture) next.userData.keepTexture = true;
         if (material.userData.matte) next.userData.matte = true;
         if (material.userData.pearl) next.userData.pearl = true;
+        if (material.userData.chrome) next.userData.chrome = true;
         if (material.userData.teaserMat && !next.userData.teaserMat) {
           next.userData.teaserMat = material.userData.teaserMat;
         }
@@ -2857,6 +3033,10 @@ function mountSignStamp(host) {
     model.position.set(x, 0.02 - Math.min(1, squashAmt) * 0.012, z);
     model.visible = true;
     if (shot.kind === 'apple') tintObject(model, rig);
+    if (chromeOn) {
+      const hex = chromeHexForShot(shot);
+      if (hex != null) tintChrome(model, hex);
+    }
     if (shot.bodyHex != null) paintTool(model, shot.kind, shot.bodyHex);
     const shade = flight.shadow;
     shade.visible = true;
@@ -3208,6 +3388,7 @@ function mountSignStamp(host) {
     if (material.userData.keepTexture) next.userData.keepTexture = true;
     if (material.userData.matte) next.userData.matte = true;
     if (material.userData.pearl) next.userData.pearl = true;
+    if (material.userData.chrome) next.userData.chrome = true;
     if (material.userData.teaserMat) next.userData.teaserMat = material.userData.teaserMat;
     return next;
   }
@@ -3283,27 +3464,25 @@ function mountSignStamp(host) {
         applyPearl(stampModel);
         applyPearl(appleModel);
         for (let i = 0; i < flights.length; i++) applyPearl(flights[i].model);
+      } else if (chromeOn) {
+        applyChrome(appleModel, CHROME_APPLE);
+        applyChrome(stampModel, CHROME_WAIT);
+        for (let i = 0; i < flights.length; i++) {
+          const hex = chromeHexForShot(flights[i].shot);
+          applyChrome(flights[i].model, hex == null ? CHROME_WAIT : hex);
+        }
       }
     });
   }
   syncToolModels();
 
-  // Stamp and half share fill 0.72 and key 1.7 unless key 2 is on, in which
-  // case the G-panel sliders are used. «low poly natural» with key 2 on draws
-  // stamp and half at one third of those slider values. With key 2 off, every
-  // tab including low poly natural uses that base pair at full strength.
-  // Tabs 01 and detail are unchanged. Tab mat always uses the slider values
-  // directly, stamp and half apart, with no extra multiplier, whether or not
-  // key 2 is on. The corner apple reads its own two sliders on mat.
-  const LOW_POLY_TOOL_LIGHT = 1 / 3;
-  function toolLightScale() {
-    if (currentModelTab().id === 'low') return LOW_POLY_TOOL_LIGHT;
-    return 1;
-  }
+  // Themes 0–2: stamp and half share fill 0.72 and key 1.7 on every L tab
+  // except mat. Theme 3 copies the corner apple's live fill and key onto
+  // both tools, every L tab, with no stamp/half slider pair and no 1/3 scale.
+  // Mat without theme 3 still drives stamp and half from their own sliders.
   function renderTools() {
     const stamps = [];
     const halves = [];
-    const toolDim = toolLightScale();
     const matTab = currentModelTab().id === 'mat';
     const restore = () => {
       fill.intensity = STAMP_AMBIENT;
@@ -3326,11 +3505,12 @@ function mountSignStamp(host) {
       };
       return;
     }
-    const lightScale = matTab ? 1 : toolDim;
-    const stampAmbient = iceLight.stampAmbient * lightScale;
-    const stampKey = iceLight.stampKey * lightScale;
-    const halfAmbient = iceLight.halfAmbient * lightScale;
-    const halfKey = iceLight.halfKey * lightScale;
+    const appleFill = iceLight.appleAmbient;
+    const appleKey = iceLight.appleKey;
+    const stampAmbient = isIceTheme() ? appleFill : iceLight.stampAmbient;
+    const stampKey = isIceTheme() ? appleKey : iceLight.stampKey;
+    const halfAmbient = isIceTheme() ? appleFill : iceLight.halfAmbient;
+    const halfKey = isIceTheme() ? appleKey : iceLight.halfKey;
     for (const flight of flights) {
       if (!flight.model.visible) continue;
       if (flight.shot.kind === 'stamp') stamps.push(flight);
@@ -3473,7 +3653,7 @@ function applyShadeSmooth(root, smooth) {
   root.traverse((node) => {
     if (!node.isMesh || !node.geometry) return;
     const matsNow = Array.isArray(node.material) ? node.material : [node.material];
-    if (matsNow.some((material) => material && (material.userData.keepTexture || material.userData.shader01 || material.userData.pearl))) return;
+    if (matsNow.some((material) => material && (material.userData.keepTexture || material.userData.shader01 || material.userData.pearl || material.userData.chrome))) return;
     if (!node.userData.flatGeometry) {
       node.userData.flatGeometry = node.geometry;
       node.userData.smoothGeometry = weldSmoothGeometry(node.geometry);
@@ -3481,7 +3661,7 @@ function applyShadeSmooth(root, smooth) {
     node.geometry = smooth ? node.userData.smoothGeometry : node.userData.flatGeometry;
     const mats = Array.isArray(node.material) ? node.material : [node.material];
     for (const material of mats) {
-      if (!material || material.userData.shader01 || material.userData.pearl) continue;
+      if (!material || material.userData.shader01 || material.userData.pearl || material.userData.chrome) continue;
       material.flatShading = !smooth;
       material.needsUpdate = true;
     }
@@ -3493,13 +3673,13 @@ function commitShadeSmooth(root, disposePrevious) {
   root.traverse((node) => {
     if (!node.isMesh || !node.geometry) return;
     const matsNow = Array.isArray(node.material) ? node.material : [node.material];
-    if (matsNow.some((material) => material && (material.userData.keepTexture || material.userData.shader01 || material.userData.pearl))) return;
+    if (matsNow.some((material) => material && (material.userData.keepTexture || material.userData.shader01 || material.userData.pearl || material.userData.chrome))) return;
     const welded = weldSmoothGeometry(node.geometry);
     const prev = node.geometry;
     node.geometry = welded;
     if (disposePrevious && prev && prev !== welded) prev.dispose();
     for (const material of matsNow) {
-      if (!material || material.userData.shader01 || material.userData.pearl) continue;
+      if (!material || material.userData.shader01 || material.userData.pearl || material.userData.chrome) continue;
       material.flatShading = false;
       material.needsUpdate = true;
     }
@@ -3544,7 +3724,7 @@ function restoreTeaserMaterial(material) {
 }
 
 function applyIceMaterial(material) {
-  if (!material || material.userData.shader01 || material.userData.keepTexture || material.userData.pearl) return;
+  if (!material || material.userData.shader01 || material.userData.keepTexture || material.userData.pearl || material.userData.chrome) return;
   rememberTeaserMaterial(material);
   material.color.setHex(ICE_MATTE);
   if (material.emissive) {
@@ -3798,28 +3978,64 @@ function mountViewportApple() {
       z: VIEW_APPLE.rotZ + src.rotZ * left,
     };
   }
-  // A click flips the apple one full turn on local X and eases back onto the
-  // resting euler. The offset lives in the pose followPointer writes every
-  // frame; a later quaternion copy would otherwise freeze the apple.
-  const APPLE_SPIN_MS = 2000;
-  let appleSpin = null;
-  function appleSpinDegrees() {
-    if (!appleSpin) return 0;
-    const t = (performance.now() - appleSpin.start) / APPLE_SPIN_MS;
-    if (t >= 1) {
-      appleSpin = null;
-      return 0;
+  // A click rolls the apple once around a circle and back to the resting pose.
+  // Desktop (the same 440px switch as applyAppleLayout): radius 21vh, center
+  // below-right, so the path goes down, then right, then up, then home.
+  // Mobile: radius 18vh, center left and above, so the path goes down, then
+  // left, then up across the top, then home. Translation is CSS pixels on top
+  // of the resting screen position. The tumble is arc length / apple radius,
+  // rounded to whole turns so the euler ends on 69.7 / -172.9 / -33.2.
+  // followPointer writes that roll into the quaternion every frame.
+  const APPLE_ROLL_MS = 11000;
+  const rollQuat = new THREE.Quaternion();
+  const rollAxis = new THREE.Vector3();
+  let appleRoll = null;
+  function appleRollSpec() {
+    const mobile = matchMedia('(max-width: 440px)').matches;
+    const h = Math.max(innerHeight, 1);
+    if (mobile) {
+      return { radius: h * 0.18, theta0: 32 * Math.PI / 180, dir: 1 };
     }
-    return easeSlow(t) * 360;
+    return { radius: h * 0.21, theta0: -160 * Math.PI / 180, dir: -1 };
   }
-  function startAppleSpin() {
+  function appleRolling() {
+    return !!(appleRoll && (performance.now() - appleRoll.start) < APPLE_ROLL_MS);
+  }
+  function appleScreenRadius() {
+    const w = Math.max(innerWidth, 2);
+    const h = Math.max(innerHeight, 2);
+    const headerH = 306 * (w / 1440);
+    const viewH = 2.4 * (h / Math.max(headerH, 1));
+    const poseSize = matchMedia('(max-width: 440px)').matches
+      ? VIEW_APPLE.size / mobileFrameScale()
+      : VIEW_APPLE.size;
+    return Math.max(12, 0.39 * poseSize * (h / viewH));
+  }
+  function appleRollSample() {
+    if (!appleRoll) return null;
+    const t = (performance.now() - appleRoll.start) / APPLE_ROLL_MS;
+    const u = t >= 1 ? 1 : easeSlow(Math.max(0, t));
+    if (u <= 0 || u >= 1) return null;
+    const spec = appleRoll.spec;
+    const theta = spec.theta0 + spec.dir * Math.PI * 2 * u;
+    const c0 = Math.cos(spec.theta0);
+    const s0 = Math.sin(spec.theta0);
+    const turns = Math.max(1, Math.round(spec.radius / appleScreenRadius()));
+    return {
+      dx: spec.radius * (Math.cos(theta) - c0),
+      dy: spec.radius * (Math.sin(theta) - s0),
+      tx: spec.dir * -Math.sin(theta),
+      ty: spec.dir * Math.cos(theta),
+      angle: Math.PI * 2 * turns * u,
+    };
+  }
+  function startAppleRoll() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    appleSpin = { start: performance.now() };
+    if (appleRolling()) return;
+    appleRoll = { start: performance.now(), spec: appleRollSpec() };
   }
   function appleShownRot() {
-    const rot = appleEnterRot();
-    rot.x += appleSpinDegrees();
-    return rot;
+    return appleEnterRot();
   }
   function captureAppleEnter() {
     return {
@@ -3951,6 +4167,13 @@ function mountViewportApple() {
       enterRot.z * Math.PI / 180,
     );
     gazeBase.setFromEuler(gazeEuler);
+    const roll = appleRollSample();
+    if (roll) {
+      const len = Math.hypot(roll.tx, roll.ty) || 1;
+      rollAxis.set(roll.ty / len, 0, -roll.tx / len);
+      rollQuat.setFromAxisAngle(rollAxis, roll.angle);
+      gazeBase.premultiply(rollQuat);
+    }
     gazePitch.setFromAxisAngle(axisX, gaze.sy * GAZE + drag.pitch);
     gazeYaw.setFromAxisAngle(axisUp, gaze.sx * GAZE + drag.yaw);
     gazeYaw.multiply(gazePitch);
@@ -4008,7 +4231,16 @@ function mountViewportApple() {
     if (event.pointerType === 'touch' && event.isPrimary === false) return;
     if (uiOwnsPointer(event)) return;
     if (!hitsViewportApple(event)) return;
-    startAppleSpin();
+    if (appleRolling()) {
+      holdStampForAppleGesture();
+      const token = dragBlockToken;
+      setTimeout(() => {
+        if (token === dragBlockToken) drag.blockStamp = false;
+      }, 0);
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+    startAppleRoll();
     drag.active = true;
     drag.pointerId = event.pointerId;
     drag.x0 = event.clientX;
@@ -4043,7 +4275,7 @@ function mountViewportApple() {
       if (!node.isMesh) return;
       const mats = Array.isArray(node.material) ? node.material : [node.material];
       for (const material of mats) {
-        if (!material || material.userData.shader01 || material.userData.keepTexture || material.userData.pearl) continue;
+        if (!material || material.userData.shader01 || material.userData.keepTexture || material.userData.pearl || material.userData.chrome) continue;
         if (material.userData.litEmissive == null) {
           material.userData.litEmissive = material.emissiveIntensity;
           material.userData.litEnv = material.envMapIntensity;
@@ -4078,8 +4310,9 @@ function mountViewportApple() {
       ? VIEW_APPLE.size / mobileFrameScale()
       : VIEW_APPLE.size;
     if (appleModel) appleModel.scale.setScalar(0.78 * poseSize);
-    const enterX = appleEnterXOffset();
-    const enterY = appleEnterOffset();
+    const roll = appleRollSample();
+    const enterX = appleEnterXOffset() + (roll ? roll.dx : 0);
+    const enterY = appleEnterOffset() + (roll ? roll.dy : 0);
     tilt.position.set(
       ((VIEW_APPLE.xPx + enterX) / w) * viewW - viewW / 2,
       0,
@@ -4124,7 +4357,7 @@ function mountViewportApple() {
       ? 'off'
       : (VIEW_APPLE.lightMode === 'map' ? 'map' : 'source');
     key.castShadow = mode === 'source';
-    scene.environmentIntensity = 0;
+    scene.environmentIntensity = chromeOn ? 1.15 : 0;
     key.shadow.radius = VIEW_APPLE.shadowRadius;
     syncAppleFlightLight();
     applySurfaceLight(mode);
@@ -4739,10 +4972,16 @@ function mountViewportApple() {
       appleFile = url;
       applyKeyLightAndPlace();
       if (pearlOn) applyPearl(appleModel);
+      else if (chromeOn) applyChrome(appleModel, CHROME_APPLE);
     });
   }
   paintPearlViewport = () => {
     if (appleModel) applyPearl(appleModel);
+    scene.environmentIntensity = 0;
+  };
+  paintChromeViewport = () => {
+    if (appleModel) applyChrome(appleModel, CHROME_APPLE);
+    scene.environmentIntensity = chromeOn ? 1.15 : 0;
   };
   restoreViewportLook = () => {
     syncViewportApple();
@@ -4755,8 +4994,13 @@ function mountViewportApple() {
     if (!alive) return;
     maybeStartAppleEnter();
     const flying = !!(appleEnter && performance.now() - appleEnter.start < appleEnter.ms);
-    if (!appleEnter || flying || !appleEnter.settled) {
+    const rolling = appleRolling();
+    if (!appleEnter || flying || !appleEnter.settled || rolling) {
       if (appleEnter && !flying) appleEnter.settled = true;
+      applyKeyLightAndPlace();
+    }
+    if (appleRoll && !appleRolling()) {
+      appleRoll = null;
       applyKeyLightAndPlace();
     }
     followPointer();
