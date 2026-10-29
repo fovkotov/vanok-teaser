@@ -25,7 +25,8 @@
     'sig-mvliy3q0-h2te': 1,
     'sig-mvlix8p8-vjgh': 1,
     'sig-mvjwzlh2-7pu1': 1,
-    'sig-mvjwevaw-74n1': 1
+    'sig-mvjwevaw-74n1': 1,
+    'sig-mvpnipgg-dbsd': 1
   };
   var VB = {
     stamp: { w: 326, h: 326 },
