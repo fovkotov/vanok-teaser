@@ -23,12 +23,18 @@
     'sig-mvie2wct-9m0d': 1,
     'sig-mvsoe8zx-x29k': 1,
     'sig-mvliy3q0-h2te': 1,
-    'sig-mvlix8p8-vjgh': 1
+    'sig-mvlix8p8-vjgh': 1,
+    'sig-mvjwzlh2-7pu1': 1,
+    'sig-mvjwevaw-74n1': 1
   };
   var VB = {
     stamp: { w: 326, h: 326 },
     apple: { w: 500, h: 500 }
   };
+  // On-screen template only. The apple body is 383.54 wide inside a 500 viewBox;
+  // the circle's outer ring is 325.35 inside 326. This scale makes those outer
+  // widths match. It does not change export viewBoxes or placed-stamp ink fractions.
+  var APPLE_PREVIEW_SCALE = (325.349651 / 326) / (383.541548 / 500);
 
   // Ink stays inside the bold outer contour. The path is a clip only.
   var INK_CLIP = {
@@ -211,6 +217,11 @@
       '<div class="sig-grid"></div>' +
     '</div>';
   document.body.appendChild(modal);
+  var applePreview = document.createElement('style');
+  applePreview.textContent =
+    '.sig-slide[data-kind="apple"] .sig-seal{transform:translate(-50%,-50%) scale(' + APPLE_PREVIEW_SCALE + ')}' +
+    '.sig-shape[data-kind="apple"] .sig-shape-art{transform:scale(' + APPLE_PREVIEW_SCALE + ');transform-origin:center}';
+  document.head.appendChild(applePreview);
 
   function slideMarkup(name, src, viewBox, path, offset) {
     var mask = 'url(' + src + ') center / 100% 100% no-repeat';

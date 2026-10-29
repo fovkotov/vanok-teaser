@@ -1333,8 +1333,9 @@ const THEME_HALF_FILE = 'design/playground/models/apple_half_green_003.glb';
 const THEME_STAMP_FILE = 'design/playground/models/stamp_round_smooth.glb';
 // Playground thumbnails: Печать гладкая, Яблоко зелёное надкусанное,
 // Половинка зелёная детальная. Clay material stays on the mat look.
-// Detail and mat keep apple_whole_folder3.glb. Tab 01 uses the updated
-// apple_whole_01.glb. Shader 01 and clay replace materials; detail keeps maps.
+// Detail and mat keep apple_whole_folder3.glb. Tabs 01 and plane share
+// apple_whole_01.glb. Shader 01 paints tab 01; plane stays a solid color.
+// Clay replaces materials; detail keeps maps.
 const TAB01_APPLE_FILE = 'design/playground/models/apple_whole_01.glb';
 const MAT_APPLE_FILE = 'design/playground/models/apple_whole_folder3.glb';
 const MAT_HALF_FILE = 'design/playground/models/apple_half_green_003.glb';
@@ -1373,12 +1374,20 @@ const MODEL_TABS = [
     stamp: MAT_STAMP_FILE,
     look: 'matte',
   },
+  {
+    id: 'plane',
+    label: 'plane',
+    apple: TAB01_APPLE_FILE,
+    half: THEME_HALF_FILE,
+    stamp: THEME_STAMP_FILE,
+    look: 'plane',
+  },
 ];
-let modelTabId = '01';
+let modelTabId = 'plane';
 // Extra degrees on the apple-half flat print, stored per L model tab.
 // Placement already adds a random spin; this adds on top. Round stamps do not read this.
-// Tab 01 starts at 10°. low poly natural, detail, and mat start at 0.
-const appleImprintSpinByTab = { low: 0, '01': 10, detail: 0, mat: 0 };
+// Tab 01 and plane start at 10°. low poly natural, detail, and mat start at 0.
+const appleImprintSpinByTab = { low: 0, '01': 10, detail: 0, mat: 0, plane: 10 };
 let appleImprintSpin = appleImprintSpinByTab[modelTabId] ?? 0;
 let syncAppleImprintSpin = () => {};
 let repaintAppleImprints = () => {};
@@ -1388,7 +1397,7 @@ function currentModelTab() {
   }
   return MODEL_TABS[0];
 }
-// Top apple pose: folder3 on detail and mat, apple_whole_01.glb on tab 01.
+// Top apple pose: folder3 on detail and mat; apple_whole_01.glb on tabs 01 and plane.
 // Local XYZ on the view wrapper, on top of the resting pose and the fit.
 // 1.2 is the on-screen size of that apple. «low poly natural» stays at 1.
 const DETAIL_APPLE_TURN = { x: 0, y: -170, z: 0, scale: 1.2 };
@@ -1403,13 +1412,13 @@ function detailAppleTurn(tab) {
 // frame, so this lives on a child of that tilt and is not folded into
 // DETAIL_APPLE_TURN. Scale multiplies the fitted size and that turn's scale.
 const viewAppleXform = { x: 0, y: 0, z: 0, scale: 1 };
-// L tab «01» only. Another yaw and size on top of DETAIL_APPLE_TURN.
+// L tabs «01» and «plane». Another yaw and size on top of DETAIL_APPLE_TURN.
 // The G sliders stay at 0, 0, 0, scale 1 and still add on view-xform.
 // Detail, mat, and low poly natural do not read this.
 const TAB01_APPLE_OFFSET = { y: 159, scale: 1.04 };
 let refreshViewAppleXform = () => {};
 // Stamping half only, and only when it is not the low-poly half.
-// Tabs 01, detail, and mat use apple_half_green_003.glb.
+// Tabs 01, detail, mat, and plane use apple_half_green_003.glb.
 // «low poly natural» (models/apple_half_green.glb) does not.
 // Local XYZ on the half itself, under the G-panel Трансформ. Those sliders
 // stay at 0, 0, 0, scale 1 and still add on top. The stamp is not turned.
@@ -1590,6 +1599,7 @@ const CHROME_WAIT = 0xe7eef5;
 let chromeOn = false;
 let paintChromeViewport = () => {};
 let refreshChromePrints = () => {};
+let refreshPlanePrints = () => {};
 const chromePrintHex = new Map();
 
 function dominantOpaqueHex(img) {
@@ -1648,6 +1658,7 @@ function queueChromeSample(src) {
     if (hex == null) return;
     chromePrintHex.set(src, hex);
     if (chromeOn) refreshChromePrints();
+    refreshPlanePrints();
   };
   img.onerror = () => chromePrintHex.delete('pending:' + src);
   img.src = src;
@@ -1661,6 +1672,25 @@ function chromeHexForShot(shot) {
   const hex = chromePrintHex.get(shot.src);
   if (hex == null) queueChromeSample(shot.src);
   return hex == null ? null : hex;
+}
+
+function planeHexForShot(shot) {
+  if (!shot || !shot.src) return null;
+  const hex = chromePrintHex.get(shot.src);
+  if (typeof hex !== 'number') queueChromeSample(shot.src);
+  return typeof hex === 'number' ? hex : null;
+}
+
+function tintPlane(root, hex) {
+  if (!root || typeof hex !== 'number') return;
+  root.traverse((node) => {
+    if (!node.isMesh || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of mats) {
+      if (!material || !material.userData.plane || !material.color) continue;
+      if (material.color.getHex() !== hex) material.color.setHex(hex);
+    }
+  });
 }
 
 function tintChrome(root, hex) {
@@ -1798,6 +1828,59 @@ function applyMatte(root) {
   });
 }
 
+// L tab «plane»: one solid color, no texture and no shader. MeshStandardMaterial
+// so the key light still shades it. The corner apple is always #56AE08.
+// Stamp and half pass the dominant color of their own print, or null until
+// that sample is ready.
+const PLANE_CORNER = 0x56ae08;
+const PLANE_ROUGH = 0.55;
+const PLANE_WAIT = 0xc8c8c8;
+
+function applyPlane(root, colorHex) {
+  if (!root) return;
+  const hex = typeof colorHex === 'number' ? colorHex : PLANE_WAIT;
+  const color = new THREE.Color(hex);
+  root.traverse((node) => {
+    if (!node.isMesh || !node.material) return;
+    const prev = Array.isArray(node.material) ? node.material : [node.material];
+    if (prev.length && prev.every((material) => material && material.userData.plane)) {
+      for (const material of prev) {
+        if (material && material.color) material.color.copy(color);
+      }
+      return;
+    }
+    let side = THREE.FrontSide;
+    for (const material of prev) {
+      if (material && material.side === THREE.DoubleSide) side = THREE.DoubleSide;
+    }
+    const material = new THREE.MeshStandardMaterial({
+      name: 'plane',
+      color,
+      metalness: 0,
+      roughness: PLANE_ROUGH,
+      emissive: 0x000000,
+      emissiveIntensity: 0,
+      envMapIntensity: 0,
+      side,
+      flatShading: false,
+    });
+    material.map = null;
+    material.envMap = null;
+    material.normalMap = null;
+    material.roughnessMap = null;
+    material.metalnessMap = null;
+    material.aoMap = null;
+    material.emissiveMap = null;
+    material.lightMap = null;
+    material.vertexColors = false;
+    material.userData.plane = true;
+    node.material = material;
+    for (const old of prev) {
+      if (old && old !== material) old.dispose();
+    }
+  });
+}
+
 loadGltf(PLAIN_APPLE_FILE);
 loadGltf(PLAIN_HALF_FILE);
 loadGltf(PLAIN_STAMP_FILE);
@@ -1869,6 +1952,9 @@ function prepareStamp(model) {
   else if (look === 'matte') {
     applyMatte(model);
     applyShadeSmooth(model, true);
+  } else if (look === 'plane') {
+    applyPlane(model, planePoolHex('stamp'));
+    applyShadeSmooth(model, true);
   } else {
     paintTeaserStamp(model);
     commitShadeSmooth(model, false);
@@ -1923,6 +2009,7 @@ function cloneTab01Apple(scene) {
 
 function prepareApple(gltf) {
   const tab = currentModelTab();
+  // Isolate APPLE_green_Bitten002 by file, on tab 01 and on plane.
   const model = tab.apple === TAB01_APPLE_FILE
     ? cloneTab01Apple(gltf.scene)
     : gltf.scene.clone(true);
@@ -1938,6 +2025,11 @@ function prepareApple(gltf) {
   }
   if (look === 'matte') {
     applyMatte(model);
+    applyShadeSmooth(model, true);
+    return fitTopDown(model);
+  }
+  if (look === 'plane') {
+    applyPlane(model, PLANE_CORNER);
     applyShadeSmooth(model, true);
     return fitTopDown(model);
   }
@@ -1975,6 +2067,11 @@ function prepareHalfApple(gltf) {
   }
   if (look === 'file') {
     markFileMaterials(model);
+    return withHalfTurn(fitTopDown(model));
+  }
+  if (look === 'plane') {
+    applyPlane(model, planePoolHex('apple'));
+    applyShadeSmooth(model, true);
     return withHalfTurn(fitTopDown(model));
   }
   model.traverse((o) => {
@@ -2033,6 +2130,45 @@ const KEY2_STAMP_IMPRINTS = [
 const KEY2_APPLE_IMPRINTS = [
   { file: 'gren.png', src: 'design/stamps/folder-42/gren.png' },
 ];
+
+function planeSources(kind) {
+  const srcs = [];
+  const seen = new Set();
+  const add = (src) => {
+    if (!src || seen.has(src)) return;
+    seen.add(src);
+    srcs.push(src);
+  };
+  const store = window.VanokSignatures;
+  if (store && typeof store.pool === 'function') {
+    const pooled = store.pool(kind) || [];
+    for (let i = 0; i < pooled.length; i++) add(pooled[i] && pooled[i].src);
+  }
+  const theme3 = (document.documentElement.dataset.theme || '0') === '3';
+  const lists = kind === 'apple'
+    ? (theme3 ? [KEY2_APPLE_IMPRINTS, APPLE_IMPRINTS] : [APPLE_IMPRINTS, KEY2_APPLE_IMPRINTS])
+    : (theme3 ? [KEY2_STAMP_IMPRINTS, STAMP_IMPRINTS] : [STAMP_IMPRINTS, KEY2_STAMP_IMPRINTS]);
+  for (let i = 0; i < lists.length; i++) {
+    const list = lists[i] || [];
+    for (let j = 0; j < list.length; j++) add(list[j] && list[j].src);
+  }
+  return srcs;
+}
+
+function queuePlanePrints() {
+  const srcs = planeSources('stamp').concat(planeSources('apple'));
+  for (let i = 0; i < srcs.length; i++) queueChromeSample(srcs[i]);
+}
+
+function planePoolHex(kind) {
+  const srcs = planeSources(kind);
+  for (let i = 0; i < srcs.length; i++) {
+    const hex = chromePrintHex.get(srcs[i]);
+    if (typeof hex === 'number') return hex;
+  }
+  if (srcs[0]) queueChromeSample(srcs[0]);
+  return null;
+}
 
 function decodeIntroImage(src) {
   return new Promise((resolve) => {
@@ -2489,6 +2625,17 @@ function mountSignStamp(host) {
       applyChrome(flights[i].model, hex);
     }
   };
+  refreshPlanePrints = () => {
+    if (currentModelTab().look !== 'plane') return;
+    const stampHex = planePoolHex('stamp');
+    const halfHex = planePoolHex('apple');
+    if (stampHex != null) tintPlane(stampModel, stampHex);
+    if (halfHex != null) tintPlane(appleModel, halfHex);
+    for (let i = 0; i < flights.length; i++) {
+      const hex = planeHexForShot(flights[i].shot);
+      if (hex != null) tintPlane(flights[i].model, hex);
+    }
+  };
   pearlTab.addEventListener('click', () => {
     pearlOn = !pearlOn;
     pearlTab.classList.toggle('on', pearlOn);
@@ -2924,7 +3071,7 @@ function mountSignStamp(host) {
       if (!o.isMesh || !o.material) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) {
-        if (m.userData.shader01 || m.userData.keepTexture || m.userData.matte || m.userData.pearl || m.userData.chrome) continue;
+        if (m.userData.shader01 || m.userData.keepTexture || m.userData.matte || m.userData.pearl || m.userData.chrome || m.userData.plane) continue;
         if (!m.userData.baseColor) {
           const snap = m.userData.teaserMat;
           m.userData.baseColor = new THREE.Color(snap ? snap.color : m.color.getHex());
@@ -2951,7 +3098,7 @@ function mountSignStamp(host) {
       if (!node.isMesh || !node.material) return;
       const mats = Array.isArray(node.material) ? node.material : [node.material];
       for (const material of mats) {
-        if (material.userData.shader01 || material.userData.keepTexture || material.userData.matte || material.userData.pearl || material.userData.chrome) continue;
+        if (material.userData.shader01 || material.userData.keepTexture || material.userData.matte || material.userData.pearl || material.userData.chrome || material.userData.plane) continue;
         if (kind === 'apple') {
           if (material.name !== 'green' && material.name !== 'PaleGreen') continue;
           material.color.setHex(hex);
@@ -2981,6 +3128,7 @@ function mountSignStamp(host) {
         if (material.userData.matte) next.userData.matte = true;
         if (material.userData.pearl) next.userData.pearl = true;
         if (material.userData.chrome) next.userData.chrome = true;
+        if (material.userData.plane) next.userData.plane = true;
         if (material.userData.teaserMat && !next.userData.teaserMat) {
           next.userData.teaserMat = material.userData.teaserMat;
         }
@@ -3038,6 +3186,10 @@ function mountSignStamp(host) {
       if (hex != null) tintChrome(model, hex);
     }
     if (shot.bodyHex != null) paintTool(model, shot.kind, shot.bodyHex);
+    if (currentModelTab().look === 'plane') {
+      const hex = planeHexForShot(shot);
+      if (hex != null) tintPlane(model, hex);
+    }
     const shade = flight.shadow;
     shade.visible = true;
     shade.position.set(x + 0.04, 0.002, z + 0.03);
@@ -3389,6 +3541,7 @@ function mountSignStamp(host) {
     if (material.userData.matte) next.userData.matte = true;
     if (material.userData.pearl) next.userData.pearl = true;
     if (material.userData.chrome) next.userData.chrome = true;
+    if (material.userData.plane) next.userData.plane = true;
     if (material.userData.teaserMat) next.userData.teaserMat = material.userData.teaserMat;
     return next;
   }
@@ -3434,6 +3587,7 @@ function mountSignStamp(host) {
     Promise.all([loadGltf(tab.stamp), loadGltf(tab.half)]).then(([stampGltf, halfGltf]) => {
       if (!alive || generation !== toolGeneration || currentModelTab().id !== tabId) return;
       globalThis.__vanokToolFiles = { tab: tabId, look: tab.look, stamp: tab.stamp, half: tab.half };
+      if (tab.look === 'plane') queuePlanePrints();
       if (stampGltf) {
         const sceneClone = stampGltf.scene.clone(true);
         cloneMaterials(sceneClone);
@@ -3445,6 +3599,10 @@ function mountSignStamp(host) {
             if (flight.shot.kind !== 'stamp') continue;
             installToolMesh(flight.model, 'stamp', fitted, true);
             if (flight.shot.bodyHex != null) paintTool(flight.model, 'stamp', flight.shot.bodyHex);
+            if (tab.look === 'plane') {
+              const hex = planeHexForShot(flight.shot);
+              if (hex != null) tintPlane(flight.model, hex);
+            }
           }
         }
       }
@@ -3457,6 +3615,10 @@ function mountSignStamp(host) {
             if (flight.shot.kind !== 'apple') continue;
             installToolMesh(flight.model, 'apple', fitted, true);
             if (flight.shot.bodyHex != null) paintTool(flight.model, 'apple', flight.shot.bodyHex);
+            if (tab.look === 'plane') {
+              const hex = planeHexForShot(flight.shot);
+              if (hex != null) tintPlane(flight.model, hex);
+            }
           }
         }
       }
@@ -3477,31 +3639,46 @@ function mountSignStamp(host) {
   syncToolModels();
 
   // Themes 0–2: stamp and half share fill 0.72 and key 1.7 on every L tab
-  // except mat. Theme 3 copies the corner apple's live fill and key onto
-  // both tools, every L tab, with no stamp/half slider pair and no 1/3 scale.
+  // except mat and plane. Theme 3 copies the corner apple's live fill and key
+  // onto both tools, every L tab, with no stamp/half slider pair and no 1/3 scale.
   // Mat without theme 3 still drives stamp and half from their own sliders.
+  // Plane without theme 3 uses the corner apple's live light: VIEW_APPLE.ambient
+  // and VIEW_APPLE.intensity (0.72 and 4.45), the same pair syncAppleFlightLight
+  // applies when the apple is not on the theme-3 or mat sliders. Full intensity,
+  // not STAMP_KEY 1.7 and not a 1/3 low-poly scale.
   function renderTools() {
     const stamps = [];
     const halves = [];
-    const matTab = currentModelTab().id === 'mat';
+    const tabId = currentModelTab().id;
+    const matTab = tabId === 'mat';
+    const planeTab = tabId === 'plane';
     const restore = () => {
       fill.intensity = STAMP_AMBIENT;
       key.intensity = STAMP_KEY;
       renderer.autoClear = true;
     };
     if (!isIceTheme() && !matTab) {
-      fill.intensity = STAMP_AMBIENT;
-      key.intensity = STAMP_KEY;
+      let ambient = STAMP_AMBIENT;
+      let keyLevel = STAMP_KEY;
+      if (planeTab) {
+        const mode = VIEW_APPLE.lightOn === false
+          ? 'off'
+          : (VIEW_APPLE.lightMode === 'map' ? 'map' : 'source');
+        ambient = mode === 'off' ? 0 : VIEW_APPLE.ambient;
+        keyLevel = mode === 'source' ? VIEW_APPLE.intensity : 0;
+      }
+      fill.intensity = ambient;
+      key.intensity = keyLevel;
       renderer.autoClear = true;
       renderer.render(scene, camera);
       icePass = {
         style2: false,
         drewStamp: false,
         drewHalf: false,
-        stampAmbient: STAMP_AMBIENT,
-        stampKey: STAMP_KEY,
-        halfAmbient: STAMP_AMBIENT,
-        halfKey: STAMP_KEY,
+        stampAmbient: ambient,
+        stampKey: keyLevel,
+        halfAmbient: ambient,
+        halfKey: keyLevel,
       };
       return;
     }
@@ -3590,6 +3767,48 @@ function mountSignStamp(host) {
     appleKey: iceLight.appleKey,
     applied: icePass,
   });
+  window.__vanokPlaneMaterials = () => {
+    const rowsOf = (root) => {
+      const rows = [];
+      if (!root) return rows;
+      root.traverse((node) => {
+        if (!node.isMesh || !node.material) return;
+        const material = Array.isArray(node.material) ? node.material[0] : node.material;
+        if (!material || !material.color) return;
+        rows.push({
+          type: material.type,
+          color: material.color.getHexString(),
+          metalness: material.metalness,
+          roughness: material.roughness,
+          map: !!material.map,
+          envMap: !!material.envMap,
+          matcap: !!material.matcap,
+          flatShading: !!material.flatShading,
+          plane: !!material.userData.plane,
+        });
+      });
+      return rows;
+    };
+    return {
+      tab: currentModelTab().id,
+      stamp: rowsOf(stampModel),
+      half: rowsOf(appleModel),
+      halfTurnY: (() => {
+        let y = null;
+        if (!appleModel) return y;
+        appleModel.traverse((node) => {
+          if (node.name === 'half-turn') y = Math.round(node.rotation.y * 180 / Math.PI);
+        });
+        return y;
+      })(),
+      flights: flights.map((flight) => ({
+        kind: flight.shot.kind,
+        src: flight.shot.src,
+        file: flight.shot.file,
+        rows: rowsOf(flight.model),
+      })),
+    };
+  };
   document.documentElement.addEventListener('vanok-theme', applyThemeInk);
   document.documentElement.addEventListener('vanok-models', syncToolModels);
   repaintAppleImprints = paintMarks;
@@ -3607,6 +3826,7 @@ function mountSignStamp(host) {
     removeEventListener('keydown', onKey);
     renderer.setAnimationLoop(null);
     if (window.__vanokPlaceSeal === placeSeal) delete window.__vanokPlaceSeal;
+    if (window.__vanokPlaneMaterials) delete window.__vanokPlaneMaterials;
     repaintAppleImprints = () => {};
     ro.disconnect();
     renderer.dispose();
@@ -4932,7 +5152,10 @@ function mountViewportApple() {
     const turn = viewAppleTurn(appleModel);
     const file = turn.userData.appleFile;
     const pose = detailAppleTurn({ apple: file });
-    const tab01 = file === TAB01_APPLE_FILE && currentModelTab().id === '01';
+    const tabId = currentModelTab().id;
+    // Tabs 01 and plane share apple_whole_01.glb. Both get DETAIL_APPLE_TURN
+    // plus TAB01_APPLE_OFFSET. low, detail, and mat do not.
+    const tab01 = file === TAB01_APPLE_FILE && (tabId === '01' || tabId === 'plane');
     const d = Math.PI / 180;
     turn.rotation.order = 'XYZ';
     turn.rotation.set(
@@ -5048,8 +5271,12 @@ function mountViewportApple() {
         roughness: mat?.roughness,
         emissive: mat?.emissive?.getHexString?.() || '',
         map: !!(mat && mat.map),
+        envMap: !!(mat && mat.envMap),
+        matcap: !!(mat && mat.matcap),
+        type: mat?.type || '',
         shader: !!(mat && mat.userData && mat.userData.shader01),
         keep: !!(mat && mat.userData && mat.userData.keepTexture),
+        plane: !!(mat && mat.userData && mat.userData.plane),
       };
     });
     const pose = appleShownRot();
@@ -5261,6 +5488,7 @@ function worldNormal(mesh) {
 
 document.documentElement.addEventListener('vanok-theme', syncIceTheme);
 window.__vanokIce = iceMaterialReport;
+queuePlanePrints();
 mountSignStamp(document.getElementById('sign-host'));
 mountViewportApple();
 </script>
