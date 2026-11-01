@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="0">
+<html lang="en" data-theme="0" data-seals="pair">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,8 +12,8 @@
      --k scales a frame from its own width. Mobile shows through 440px.
      Desktop columns stretch: margin 12, gutter 12, count 12. */
   :root {
-    --bg: #d7d7d7;
-    --blue: #0c6df4;
+    --bg: #E9E9E9;
+    --blue: #0A1AE9;
     --grotesk: Arial, "Helvetica Neue", Helvetica, sans-serif;
     /* Visual viewport. JS overwrites these when Safari chrome shifts it. */
     --vvh: 100dvh;
@@ -77,8 +77,8 @@
     --col: calc((100vw - 2 * var(--grid-margin) - 11 * var(--grid-gutter)) / 12);
     --letter-w: calc(6 * var(--col) + 5 * var(--grid-gutter));
     --letter-left: calc(var(--grid-margin) + 6 * (var(--col) + var(--grid-gutter)));
-    /* Bio is one 16*k line at 12*k. The clear gap under that block is 24px at every width. */
-    --wordmark-top: calc(28 * var(--k) + 24px);
+    /* Nav sits at 12*k. The swash tips rise to that line; Vanök and Regular stay locked together. */
+    --wordmark-top: calc(6 * var(--k));
     height: calc(800 * var(--k));
     background: var(--bg) fixed;
   }
@@ -411,6 +411,19 @@
     -webkit-mask-size: 100% 100%;
     mask-size: 100% 100%;
   }
+  /* Wet ink settles onto the sharp print. The bitmap reveal lives in JS. */
+  .sign-imprint .ink-dry {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
+    animation: ink-dry-settle 760ms cubic-bezier(0.16, 0.64, 0.2, 1) both;
+  }
+  @keyframes ink-dry-settle {
+    from { transform: scale(1.028); }
+    to { transform: none; }
+  }
   .stamp-panel {
     position: fixed;
     z-index: 100;
@@ -420,9 +433,9 @@
     max-height: min(680px, calc(100vh - 32px));
     overflow: auto;
     padding: 12px 14px 14px;
-    background: #d7d7d7;
-    color: #0c6df4;
-    border: 1px solid #0c6df4;
+    background: #E9E9E9;
+    color: #0A1AE9;
+    border: 1px solid #0A1AE9;
     font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
     font-size: 12px;
     line-height: 1.3;
@@ -451,15 +464,15 @@
   .stamp-panel .tabs { display: flex; gap: 6px; margin: 0 0 8px; }
   .stamp-panel .tabs button {
     flex: 1 1 auto;
-    border: 1px solid #0c6df4;
+    border: 1px solid #0A1AE9;
     background: transparent;
-    color: #0c6df4;
+    color: #0A1AE9;
     font: inherit;
     padding: 4px 6px;
     cursor: pointer;
     white-space: nowrap;
   }
-  .stamp-panel .tabs button.on { background: #0c6df4; color: #e1e1e1; }
+  .stamp-panel .tabs button.on { background: #0A1AE9; color: #E9E9E9; }
   .stamp-panel .pane[hidden] { display: none; }
   .stamp-panel .close {
     position: absolute;
@@ -467,7 +480,7 @@
     right: 8px;
     border: 0;
     background: transparent;
-    color: #0c6df4;
+    color: #0A1AE9;
     font: inherit;
     cursor: pointer;
     padding: 2px 4px;
@@ -480,16 +493,16 @@
     display: block;
     width: 100%;
     margin-top: 4px;
-    accent-color: #0c6df4;
+    accent-color: #0A1AE9;
   }
   .stamp-panel select,
   .stamp-panel input[type="color"] {
     display: block;
     width: 100%;
     margin-top: 4px;
-    color: #0c6df4;
+    color: #0A1AE9;
     background: #e8e8e8;
-    border: 1px solid #0c6df4;
+    border: 1px solid #0A1AE9;
     font: inherit;
   }
   .stamp-panel input[type="color"] { height: 24px; padding: 0; }
@@ -504,7 +517,7 @@
     align-items: center;
     gap: 8px;
   }
-  .stamp-panel .checks input { accent-color: #0c6df4; }
+  .stamp-panel .checks input { accent-color: #0A1AE9; }
   .stamp-panel .meta { margin: 10px 0 0; }
   .stamp-panel .meta p { margin: 0 0 4px; }
   .stamp-panel .thumbs { display: flex; gap: 6px; margin-top: 6px; }
@@ -513,10 +526,10 @@
     height: 46px;
     padding: 2px;
     border: 1px solid rgba(12, 109, 244, 0.35);
-    background: #ececec;
+    background: #E9E9E9;
     cursor: pointer;
   }
-  .stamp-panel .thumbs button.on { border-color: #0c6df4; box-shadow: inset 0 0 0 1px #0c6df4; }
+  .stamp-panel .thumbs button.on { border-color: #0A1AE9; box-shadow: inset 0 0 0 1px #0A1AE9; }
   .stamp-panel .thumbs img { width: 100%; height: 100%; object-fit: contain; }
   .apple-view {
     position: fixed;
@@ -535,9 +548,9 @@
     overflow: auto;
     margin: 0;
     padding: 12px 14px 14px;
-    background: #d7d7d7;
-    color: #0c6df4;
-    border: 1px solid #0c6df4;
+    background: #E9E9E9;
+    color: #0A1AE9;
+    border: 1px solid #0A1AE9;
     font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
     font-size: 12px;
     line-height: 1.3;
@@ -562,16 +575,16 @@
     margin: 10px 0 0;
   }
   .apple-light .model-tabs button {
-    border: 1px solid #0c6df4;
-    background: #ececec;
-    color: #0c6df4;
+    border: 1px solid #0A1AE9;
+    background: #E9E9E9;
+    color: #0A1AE9;
     font: inherit;
     padding: 5px 8px;
     cursor: pointer;
   }
   .apple-light .model-tabs button.on {
-    background: #0c6df4;
-    color: #e1e1e1;
+    background: #0A1AE9;
+    color: #E9E9E9;
   }
   .apple-light .close {
     position: absolute;
@@ -579,7 +592,7 @@
     right: 8px;
     border: 0;
     background: transparent;
-    color: #0c6df4;
+    color: #0A1AE9;
     font: inherit;
     cursor: pointer;
     padding: 2px 4px;
@@ -592,15 +605,15 @@
     display: block;
     width: 100%;
     margin-top: 4px;
-    accent-color: #0c6df4;
+    accent-color: #0A1AE9;
   }
   .apple-light select {
     display: block;
     width: 100%;
     margin-top: 4px;
-    color: #0c6df4;
+    color: #0A1AE9;
     background: #e8e8e8;
-    border: 1px solid #0c6df4;
+    border: 1px solid #0A1AE9;
     font: inherit;
   }
   .apple-light .checks { margin-top: 10px; }
@@ -609,14 +622,14 @@
     align-items: center;
     gap: 8px;
   }
-  .apple-light .checks input { accent-color: #0c6df4; }
+  .apple-light .checks input { accent-color: #0A1AE9; }
   .apple-light .copy-json {
     display: block;
     width: 100%;
     margin-top: 14px;
-    border: 1px solid #0c6df4;
-    background: #0c6df4;
-    color: #e1e1e1;
+    border: 1px solid #0A1AE9;
+    background: #0A1AE9;
+    color: #E9E9E9;
     font: inherit;
     padding: 7px 10px;
     cursor: pointer;
@@ -922,7 +935,7 @@
     height: 8px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: #d7d7d7;
+    background: #E9E9E9;
   }
   .sig-upload,
   .sig-create {
@@ -1178,8 +1191,8 @@
 </head>
 <body>
   <section class="frame desk" aria-label="Desktop">
-    <img class="vanok" src="design/stub/wordmark-vanok.svg" alt="">
-    <img class="regular" src="design/stub/wordmark-regular.svg" alt="">
+    <img class="vanok" src="design/stub/wordmark-vanok-ui.svg" alt="">
+    <img class="regular" src="design/stub/wordmark-regular-ui.svg" alt="">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
     <img class="lettering lettering-2" src="design/stub/wordmark-green.svg" alt="">
     <img class="lettering lettering-3" src="design/stub/wordmark-star.svg" alt="">
@@ -1202,8 +1215,8 @@
     </div>
   </section>
   <section class="frame mob" aria-label="Mobile">
-    <img class="vanok" src="design/stub/wordmark-vanok.svg" alt="">
-    <img class="regular" src="design/stub/wordmark-regular.svg" alt="">
+    <img class="vanok" src="design/stub/wordmark-vanok-ui.svg" alt="">
+    <img class="regular" src="design/stub/wordmark-regular-ui.svg" alt="">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
     <img class="lettering lettering-2" src="design/stub/wordmark-green.svg" alt="">
     <img class="lettering lettering-3" src="design/stub/wordmark-star.svg" alt="">
@@ -1664,8 +1677,7 @@ function queueChromeSample(src) {
   img.src = src;
 }
 
-queueChromeSample('design/stamps/folder-42/blue.png');
-queueChromeSample('design/stamps/folder-42/pink.png');
+queueChromeSample('design/stamps/classic/blue.png');
 
 function chromeHexForShot(shot) {
   if (!shot || shot.kind === 'apple' || shot.file === 'gren.png') return CHROME_APPLE;
@@ -2115,20 +2127,18 @@ function orientHalfCut(model) {
 
 // «sign here»: печать выезжает из-за нижнего края в точку клика, строго сверху,
 // оставляет оттиск там и уходит обратно вниз. G — настройки этого жеста, только на время вкладки.
-// Both modes draw the folder-42 set: two rounds and the apple.
+// Classic teaser: the round blue seal and the green apple only.
 const STAMP_IMPRINTS = [
-  { file: 'blue.png', src: 'design/stamps/folder-42/blue.png' },
-  { file: 'pink.png', src: 'design/stamps/folder-42/pink.png' },
+  { file: 'blue.png', src: 'design/stamps/classic/blue.png' },
 ];
 const APPLE_IMPRINTS = [
-  { file: 'gren.png', src: 'design/stamps/folder-42/gren.png' },
+  { file: 'gren.png', src: 'design/stamps/classic/gren.png' },
 ];
 const KEY2_STAMP_IMPRINTS = [
-  { file: 'blue.png', src: 'design/stamps/folder-42/blue.png' },
-  { file: 'pink.png', src: 'design/stamps/folder-42/pink.png' },
+  { file: 'blue.png', src: 'design/stamps/classic/blue.png' },
 ];
 const KEY2_APPLE_IMPRINTS = [
-  { file: 'gren.png', src: 'design/stamps/folder-42/gren.png' },
+  { file: 'gren.png', src: 'design/stamps/classic/gren.png' },
 ];
 
 function planeSources(kind) {
@@ -2197,8 +2207,8 @@ function revealTeaser() {
 const introImages = [
   ...STAMP_IMPRINTS.map((item) => item.src),
   ...APPLE_IMPRINTS.map((item) => item.src),
-  'design/stub/wordmark-vanok.svg',
-  'design/stub/wordmark-regular.svg',
+  'design/stub/wordmark-vanok-ui.svg',
+  'design/stub/wordmark-regular-ui.svg',
   'design/stub/wordmark-8a7e59.svg',
   'design/stub/wordmark-green.svg',
   'design/stub/wordmark-star.svg',
@@ -2220,18 +2230,16 @@ Promise.race([
 });
 
 const STAMP_CASTS = [
-  { file: 'blue.png', hex: 0x0c6df4, color: 'blue' },
-  { file: 'pink.png', hex: 0xff91f8, color: 'pink' },
+  { file: 'blue.png', hex: 0x0a1ae9, color: 'blue' },
 ];
 const APPLE_CASTS = [
-  { file: 'gren.png', hex: 0x67c514, color: 'green' },
+  { file: 'gren.png', hex: 0x8cc88c, color: 'green' },
 ];
 const KEY2_STAMP_CASTS = [
-  { file: 'blue.png', hex: 0x0c6df4, color: 'blue' },
-  { file: 'pink.png', hex: 0xff91f8, color: 'pink' },
+  { file: 'blue.png', hex: 0x0a1ae9, color: 'blue' },
 ];
 const KEY2_APPLE_CASTS = [
-  { file: 'gren.png', hex: 0x67c514, color: 'green' },
+  { file: 'gren.png', hex: 0x8cc88c, color: 'green' },
 ];
 const INK_FRAC = 505 / 539;
 const APPLE_INK_FRAC = 460 / 537;
@@ -2329,7 +2337,7 @@ function mountSignStamp(host) {
     offsetX: 0,
     offsetY: 0,
     opacity: 1,
-    tint: '#0c6df4',
+    tint: '#0A1AE9',
     tintAmount: 0,
     blur: 0,
     liftAway: true,
@@ -2344,7 +2352,7 @@ function mountSignStamp(host) {
   stampRig.lift = 1.55;
   stampRig.scale = 0.97;
   stampRig.printScale = 1.12;
-  stampRig.rotation = 8;
+  stampRig.rotation = 62;
   stampRig.startX = -31.2;
   stampRig.startY = 72.7;
   stampRig.startZ = -2.4;
@@ -2369,7 +2377,7 @@ function mountSignStamp(host) {
   appleRig.dwell = 0.17;
   appleRig.lift = 1.2;
   appleRig.scale = 1.28;
-  appleRig.rotation = 17;
+  appleRig.rotation = 62;
   appleRig.startX = 0;
   appleRig.startY = 0;
   appleRig.startZ = 0;
@@ -2469,7 +2477,7 @@ function mountSignStamp(host) {
       addSlider(pane, rig, 'Масштаб', 'scale', 0.4, 1.8, 0.01, pct, false);
       addSlider(pane, rig, 'Масштаб принта', 'imprintScale', 0.4, 2, 0.01, pct, true);
     }
-    addSlider(pane, rig, 'Поворот', 'rotation', 0, 45, 1, (n) => '±' + Math.round(n) + '°', false);
+    addSlider(pane, rig, 'Поворот', 'rotation', 0, 90, 1, (n) => '±' + Math.round(n) + '°', false);
     if (!ink) addSlider(pane, rig, 'Поворот печати', 'imprintRot', -180, 180, 0.1, deg, true);
     addAxes(pane, rig, 'Поворот на старте', 'start');
     addAxes(pane, rig, 'Поворот в полёте', 'fly');
@@ -2822,6 +2830,150 @@ function mountSignStamp(host) {
       ui.last.textContent = 'Поставлен: ' + current.file;
     }
     paintMarks();
+    dryMark(marks[marks.length - 1]);
+  }
+
+  // After the hit, thick ink is already there. Thin edges and pale fringes
+  // finish a moment later, and a little blur dries off. Patches around the
+  // seal complete at different times, so the print looks drawn in, not faded.
+  function dryMark(mark) {
+    if (!mark || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const photo = mark.el.querySelector('img.ink');
+    if (!photo) return;
+    photo.style.visibility = 'hidden';
+    mark.dye.style.visibility = 'hidden';
+    const reveal = () => {
+      if (!mark.el.isConnected) return;
+      const wet = mark.el.querySelector('.ink-dry');
+      if (wet) wet.remove();
+      photo.style.visibility = '';
+      mark.dye.style.visibility = '';
+    };
+    const run = () => {
+      if (!mark.el.isConnected || !photo.naturalWidth) {
+        reveal();
+        return;
+      }
+      const cssW = mark.el.offsetWidth || 220;
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      let cw = Math.max(1, Math.round(cssW * dpr));
+      let ch = Math.max(1, Math.round(cw * (photo.naturalHeight / photo.naturalWidth)));
+      const cap = 420;
+      const longest = Math.max(cw, ch);
+      if (longest > cap) {
+        const fit = cap / longest;
+        cw = Math.max(1, Math.round(cw * fit));
+        ch = Math.max(1, Math.round(ch * fit));
+      }
+      const buffer = document.createElement('canvas');
+      buffer.width = cw;
+      buffer.height = ch;
+      const bctx = buffer.getContext('2d');
+      try {
+        bctx.drawImage(photo, 0, 0, cw, ch);
+        bctx.getImageData(0, 0, 1, 1);
+      } catch (err) {
+        reveal();
+        return;
+      }
+      const rig = mark.kind === 'apple' ? appleRig : stampRig;
+      const themed = themeHex(mark.castHex);
+      const tintAlpha = themed != null ? 1 : rig.tintAmount;
+      if (tintAlpha > 0.01) {
+        bctx.save();
+        bctx.globalCompositeOperation = 'source-atop';
+        bctx.globalAlpha = tintAlpha;
+        bctx.fillStyle = themed != null
+          ? '#' + themed.toString(16).padStart(6, '0')
+          : rig.tint;
+        bctx.fillRect(0, 0, cw, ch);
+        bctx.restore();
+      }
+      const src = bctx.getImageData(0, 0, cw, ch).data;
+      const n = cw * ch;
+      const dist = new Float32Array(n);
+      const far = 1e6;
+      for (let i = 0; i < n; i++) {
+        if (src[i * 4 + 3] < 12) {
+          dist[i] = 0;
+          continue;
+        }
+        let d = far;
+        if (i % cw) d = Math.min(d, dist[i - 1] + 1);
+        if (i >= cw) d = Math.min(d, dist[i - cw] + 1);
+        dist[i] = d;
+      }
+      for (let i = n - 1; i >= 0; i--) {
+        if (!dist[i]) continue;
+        let d = dist[i];
+        if (i % cw !== cw - 1) d = Math.min(d, dist[i + 1] + 1);
+        if (i + cw < n) d = Math.min(d, dist[i + cw] + 1);
+        dist[i] = d;
+      }
+      const order = new Float32Array(n);
+      const seed = Math.random() * Math.PI * 2;
+      for (let y = 0; y < ch; y++) {
+        const ny = y / ch;
+        for (let x = 0; x < cw; x++) {
+          const i = y * cw + x;
+          if (src[i * 4 + 3] < 12) {
+            order[i] = 9;
+            continue;
+          }
+          const nx = x / cw;
+          const blot = Math.sin(nx * 9.2 + seed) * Math.sin(ny * 7.6 + seed * 1.4);
+          const patch = blot * 0.5 + 0.5;
+          const rings = dist[i];
+          // 1px rim and hairlines finish last. The middle of a thick stroke is already down.
+          const late = rings <= 1 ? 0.8 : rings === 2 ? 0.46 : 0.04;
+          order[i] = late + patch * 0.05;
+        }
+      }
+      const view = document.createElement('canvas');
+      view.className = 'ink-dry';
+      view.width = cw;
+      view.height = ch;
+      const vctx = view.getContext('2d');
+      mark.el.insertBefore(view, mark.el.firstChild);
+      const frameData = bctx.createImageData(cw, ch);
+      const out = frameData.data;
+      const started = performance.now();
+      const dur = 760;
+      const paint = (now) => {
+        if (!mark.el.isConnected) return;
+        const t = Math.min(1, (now - started) / dur);
+        const e = 1 - (1 - t) ** 2.15;
+        for (let i = 0, n = cw * ch; i < n; i++) {
+          const when = order[i];
+          const p = i * 4;
+          let u = when > 2 ? 0 : (e - when) / 0.18 + 0.34;
+          if (u <= 0) {
+            out[p] = out[p + 1] = out[p + 2] = out[p + 3] = 0;
+            continue;
+          }
+          if (u > 1) u = 1;
+          else u = u * u * (3 - 2 * u);
+          out[p] = src[p];
+          out[p + 1] = src[p + 1];
+          out[p + 2] = src[p + 2];
+          out[p + 3] = Math.round(src[p + 3] * u);
+        }
+        bctx.putImageData(frameData, 0, 0);
+        vctx.clearRect(0, 0, cw, ch);
+        const blur = (1 - e) * 0.45 * (cw / Math.max(cssW, 1));
+        vctx.filter = blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : 'none';
+        vctx.drawImage(buffer, 0, 0);
+        vctx.filter = 'none';
+        if (t < 1) requestAnimationFrame(paint);
+        else reveal();
+      };
+      paint(started);
+    };
+    if (photo.complete && photo.naturalWidth) run();
+    else {
+      photo.addEventListener('load', run, { once: true });
+      photo.addEventListener('error', reveal, { once: true });
+    }
   }
   const colorDeck = [];
   let lastColor = '';
@@ -2868,7 +3020,7 @@ function mountSignStamp(host) {
       const casts = item.kind === 'apple' ? APPLE_CASTS : STAMP_CASTS;
       const stock = casts.find((cast) => cast.file === file);
       if (stock) return castFromStock(item.kind, stock);
-      const hex = Number.isFinite(item.castHex) ? item.castHex : 0x0c6df4;
+      const hex = Number.isFinite(item.castHex) ? item.castHex : 0x0a1ae9;
       const themed = themeHex(hex);
       return {
         file: file || item.id,
@@ -2908,33 +3060,10 @@ function mountSignStamp(host) {
     const casts = kind === 'apple' ? APPLE_CASTS : STAMP_CASTS;
     if (store && rig.file === 'random') {
       const forced = store.takeNext(kind);
-      if (forced) {
+      if (forced && !forced.preset) {
         lastColor = forced.colorName || lastColor;
         store.rememberPlaced(kind, optionId(forced));
         return castFromLibrary(forced);
-      }
-      if (usesFolderStamps()) {
-        const folder = drawFolder(kind);
-        if (folder) return folder;
-      }
-      const customs = store.pool(kind);
-      if (!customs.length) return null;
-      {
-        const options = customs.map((item) => ({ id: optionId(item), item }));
-        let bag = options;
-        const last = store.lastPlaced(kind);
-        if (options.length > 1 && last) {
-          const fresh = options.filter((entry) => entry.id !== last);
-          if (fresh.length) bag = fresh;
-        }
-        const choice = bag[Math.floor(Math.random() * bag.length)];
-        store.rememberPlaced(kind, choice.id);
-        if (choice.item) {
-          lastColor = choice.item.colorName || lastColor;
-          return castFromLibrary(choice.item);
-        }
-        lastColor = choice.cast.color;
-        return castFromStock(kind, choice.cast);
       }
     }
     let cast = casts.find((item) => item.file === rig.file);
@@ -3206,28 +3335,14 @@ function mountSignStamp(host) {
     if (typeof globalThis.__vanokAppleGesture === 'function' && globalThis.__vanokAppleGesture()) return;
     const armed = window.VanokSignatures && window.VanokSignatures.peekNext();
     const kind = armed ? armed.kind : (pressN % 2 === 0 ? 'stamp' : 'apple');
-    const source = kindReady(kind);
-    if (!source) {
-      queued.push(point);
-      return;
-    }
-    pressN += 1;
     const rig = kind === 'stamp' ? stampRig : appleRig;
+    pressN += 1;
     const shot = sampleShot(point, rig, kind);
     if (!shot) return;
-    const flight = {
-      shot,
-      phase: 'descend',
-      phaseU: 0,
-      model: cloneTool(source),
-      shadow: cloneShadow(),
-    };
-    flights.push(flight);
+    placeInk(shot);
     const ui = fileUis.find((item) => item.kind === kind);
     if (ui) ui.last.textContent = 'Сейчас: ' + shot.file;
     refreshFiles();
-    const goal = targetOf(shot);
-    applyPose(flight, goal.x, goal.edge, 0, shot.rot, 0, poseFor(flight, 'descend', 0));
   }
 
   function placeSeal(item, clientX, clientY) {
@@ -3235,11 +3350,6 @@ function mountSignStamp(host) {
     const kind = item.kind;
     const hr = host.getBoundingClientRect();
     const point = { px: clientX - hr.left, py: clientY - hr.top };
-    const source = kindReady(kind);
-    if (!source) {
-      queued.push({ px: point.px, py: point.py, seal: item });
-      return;
-    }
     const rig = kind === 'stamp' ? stampRig : appleRig;
     const choice = castFromLibrary(item);
     const w = host.clientWidth || 1;
@@ -3257,19 +3367,10 @@ function mountSignStamp(host) {
     const store = window.VanokSignatures;
     if (store && typeof store.rememberPlaced === 'function') store.rememberPlaced(kind, optionId(item));
     pressN += 1;
-    const flight = {
-      shot,
-      phase: 'descend',
-      phaseU: 0,
-      model: cloneTool(source),
-      shadow: cloneShadow(),
-    };
-    flights.push(flight);
+    placeInk(shot);
     const ui = fileUis.find((row) => row.kind === kind);
     if (ui) ui.last.textContent = 'Сейчас: ' + shot.file;
     refreshFiles();
-    const goal = targetOf(shot);
-    applyPose(flight, goal.x, goal.edge, 0, shot.rot, 0, poseFor(flight, 'descend', 0));
   }
   window.__vanokPlaceSeal = placeSeal;
 
@@ -4023,6 +4124,7 @@ function iceMaterialReport() {
 }
 
 function mountViewportApple() {
+  return;
   if (VIEW_APPLE.xPx == null) VIEW_APPLE.xPx = Math.round(innerWidth * 0.5);
   if (VIEW_APPLE.topPx == null) VIEW_APPLE.topPx = 0;
 

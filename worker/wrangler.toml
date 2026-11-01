@@ -1,0 +1,7 @@
+name = "vanok-signatures"
+main = "signatures-worker.js"
+compatibility_date = "2026-10-21"
+
+[[kv_namespaces]]
+binding = "SIGNATURES"
+id = "replace-with-kv-namespace-id"

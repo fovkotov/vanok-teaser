@@ -4,6 +4,12 @@
     { name: 'blue', hex: '#0c6df4', cast: 0x0c6df4 },
     { name: 'green', hex: '#67c514', cast: 0x67c514 }
   ];
+  if (document.documentElement.getAttribute('data-seals') === 'pair') {
+    COLORS = [
+      { name: 'blue', hex: '#0A1AE9', cast: 0x0a1ae9 },
+      { name: 'green', hex: '#8CC88C', cast: 0x8cc88c }
+    ];
+  }
   var KEY = 'vanok_signatures_v1';
   var CLEARED = 'vanok_signatures_v1_cleared';
   var POOL_KEY = 'vanok_signature_pool_v1';
@@ -13,6 +19,12 @@
     { id: 'preset-folder42-pink', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/folder-42/pink.png', colorName: 'pink', castHex: 0xff91f8 },
     { id: 'preset-folder42-gren', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/folder-42/gren.png', colorName: 'green', castHex: 0x67c514 }
   ];
+  if (document.documentElement.getAttribute('data-seals') === 'pair') {
+    PRESETS = [
+      { id: 'preset-classic-blue', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/classic/blue.png', colorName: 'blue', castHex: 0x0a1ae9 },
+      { id: 'preset-classic-gren', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/classic/gren.png', colorName: 'green', castHex: 0x8cc88c }
+    ];
+  }
   var REMOVED_IDS = {
     'sig-mvipeu03-ril8': 1,
     'sig-mvipa8wh-qk2b': 1,
@@ -67,7 +79,7 @@
   var pending = null;
   var placed = { stamp: '', apple: '' };
   var kind = 'stamp';
-  var colorIndex = 1;
+  var colorIndex = document.documentElement.getAttribute('data-seals') === 'pair' ? 0 : 1;
   var texts = { stamp: '', apple: '' };
   var strokes = { stamp: [], apple: [] };
   var photos = { stamp: null, apple: null };
