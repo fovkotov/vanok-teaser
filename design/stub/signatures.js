@@ -773,16 +773,25 @@
     grid.scrollTop = 0;
     renderGrid(freshId, from);
   }
-  function closeModal() {
+  function closeModal(done) {
     clearFlight();
     leaveDraw();
     holdLauncher(false);
-    if (modal.hidden) return;
+    if (modal.hidden) {
+      if (typeof done === 'function') done();
+      return;
+    }
     var gen = modalGen;
+    var settled = false;
     modal.classList.remove('is-open');
     function finish() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      modal.removeEventListener('transitionend', onEnd);
       if (gen !== modalGen) return;
       modal.hidden = true;
+      if (typeof done === 'function') done();
     }
     if (motionOff()) {
       finish();
@@ -791,11 +800,20 @@
     var timer = setTimeout(finish, 320);
     function onEnd(event) {
       if (event.target !== modal || event.propertyName !== 'opacity') return;
-      clearTimeout(timer);
-      modal.removeEventListener('transitionend', onEnd);
       finish();
     }
     modal.addEventListener('transitionend', onEnd);
+  }
+  // Create Signature closes the sheet, then the new seal draws in at the
+  // center through the same placeInk path as a click. Library picks still
+  // stamp where placeLibrarySeal puts them.
+  function stampCreatedSeal(item) {
+    ensurePooled(item);
+    closeModal(function () {
+      var x = (window.innerWidth || 1) * 0.5;
+      var y = (window.innerHeight || 1) * 0.5;
+      if (typeof window.__vanokPlaceSeal === 'function') window.__vanokPlaceSeal(item, x, y);
+    });
   }
 
   for (var li = 0; li < launchers.length; li++) {
@@ -1199,7 +1217,7 @@
     paintText();
     placeCaret();
     try { input.blur(); } catch (err) {}
-    placeLibrarySeal(item);
+    stampCreatedSeal(item);
     setTimeout(function () {
       saveLocal();
       postItem(item);
