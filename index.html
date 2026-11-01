@@ -269,10 +269,15 @@
   .mob .lettering-2 { height: calc(327 * var(--k) * 82 / 702); }
   .mob .lettering-3 { height: calc(327 * var(--k) * 124 / 702); }
 
-  /* Sign line sits at y=465 on the 375×812 frame. Width scale only, so theme changes do not move it. */
+  /* The line and the label are one block, centered in the height left
+     between the wordmark and the bottom row. Those edges are pinned, so
+     the two gaps stay equal as the visual viewport changes. */
   .mob .sign {
     left: calc(74.25 * var(--k));
-    top: calc(465 * var(--k));
+    --sign-after: calc(var(--wordmark-top) + 108.538 * var(--k));
+    --sign-before: calc(var(--vv-top) + var(--vvh) - (24 + 14) * var(--k));
+    --sign-block: calc((6.625 + 14) * var(--k));
+    top: calc((var(--sign-after) + var(--sign-before) - var(--sign-block)) / 2);
     width: calc(226.492 * var(--k));
   }
 
