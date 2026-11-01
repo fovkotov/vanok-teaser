@@ -140,18 +140,11 @@
     right: var(--grid-margin);
   }
 
-  .desk .vanok {
+  .desk .wordmark {
     left: var(--letter-left);
-    top: var(--wordmark-top);
-    width: calc(var(--letter-w) * 335.72991943359375 / 701.996826171875);
-    height: calc(var(--letter-w) * 233.0081329345703 / 701.996826171875);
-  }
-
-  .desk .regular {
-    left: calc(var(--letter-left) + var(--letter-w) * 241.17164611816406 / 701.996826171875);
-    top: calc(var(--wordmark-top) + var(--letter-w) * 35.594642639160156 / 701.996826171875);
-    width: calc(var(--letter-w) * 460.824951171875 / 701.996826171875);
-    height: calc(var(--letter-w) * 193.93946838378906 / 701.996826171875);
+    top: 12px;
+    width: var(--letter-w);
+    height: calc(var(--letter-w) * 233 / 702);
   }
 
   .frame .lettering { display: none; }
@@ -160,10 +153,13 @@
   html[data-theme="3"] .frame .lettering-3 { display: block; }
   html[data-theme="1"] .vanok,
   html[data-theme="1"] .regular,
+  html[data-theme="1"] .wordmark,
   html[data-theme="2"] .vanok,
   html[data-theme="2"] .regular,
+  html[data-theme="2"] .wordmark,
   html[data-theme="3"] .vanok,
-  html[data-theme="3"] .regular { display: none; }
+  html[data-theme="3"] .regular,
+  html[data-theme="3"] .wordmark { display: none; }
 
   .desk .lettering-1,
   .desk .lettering-2,
@@ -663,6 +659,7 @@
 
   .vanok,
   .regular,
+  .wordmark,
   .lettering,
   .bio,
   .soon,
@@ -678,6 +675,7 @@
   }
   html.page-ready .vanok,
   html.page-ready .regular,
+  html.page-ready .wordmark,
   html.page-ready .lettering,
   html.page-ready .bio,
   html.page-ready .soon,
@@ -1199,8 +1197,7 @@
 </head>
 <body>
   <section class="frame desk" aria-label="Desktop">
-    <img class="vanok" src="design/stub/wordmark-vanok-ui.svg" alt="">
-    <img class="regular" src="design/stub/wordmark-regular-ui.svg" alt="">
+    <img class="wordmark" src="design/stub/wordmark.svg" alt="">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
     <img class="lettering lettering-2" src="design/stub/wordmark-green.svg" alt="">
     <img class="lettering lettering-3" src="design/stub/wordmark-star.svg" alt="">
@@ -2256,6 +2253,7 @@ function revealTeaser() {
 const introImages = [
   ...STAMP_IMPRINTS.map((item) => item.src),
   ...APPLE_IMPRINTS.map((item) => item.src),
+  'design/stub/wordmark.svg',
   'design/stub/wordmark-vanok-ui.svg',
   'design/stub/wordmark-regular-ui.svg',
   'design/stub/wordmark-8a7e59.svg',
