@@ -1847,6 +1847,45 @@ function applyMatte(root) {
 const PLANE_CORNER = 0x56ae08;
 const PLANE_ROUGH = 0.55;
 const PLANE_WAIT = 0xc8c8c8;
+// Cinnamon stem on the corner apple only. The body stays PLANE_CORNER.
+const STEM_BROWN = 0x8b5a2b;
+
+function markAppleStem(root) {
+  root.traverse((node) => {
+    if (!node.isMesh || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    // apple_whole_01.glb: APPLE_green_Bitten.002 is two primitives. The
+    // 49-vertex twig uses green_apple_2_texture; the body is Material.002.
+    // The leaf is a different node and is not part of this apple.
+    if (mats.some((material) => material && /green_apple_2_texture/i.test(material.name || ''))) {
+      node.userData.appleStem = true;
+    }
+  });
+}
+
+function paintAppleStem(root) {
+  root.traverse((node) => {
+    if (!node.isMesh || !node.userData.appleStem || !node.material) return;
+    const prev = Array.isArray(node.material) ? node.material : [node.material];
+    const next = prev.map((material) => {
+      if (!material) return material;
+      const stem = material.clone();
+      stem.name = 'stem';
+      stem.color.setHex(STEM_BROWN);
+      if (stem.emissive) {
+        stem.emissive.setHex(0x000000);
+        stem.emissiveIntensity = 0;
+      }
+      stem.userData.stem = true;
+      stem.userData.plane = false;
+      return stem;
+    });
+    node.material = Array.isArray(node.material) ? next : next[0];
+    for (const old of prev) {
+      if (old && !next.includes(old)) old.dispose();
+    }
+  });
+}
 
 function applyPlane(root, colorHex) {
   if (!root) return;
@@ -2041,7 +2080,9 @@ function prepareApple(gltf) {
     return fitTopDown(model);
   }
   if (look === 'plane') {
+    markAppleStem(model);
     applyPlane(model, PLANE_CORNER);
+    paintAppleStem(model);
     applyShadeSmooth(model, true);
     return fitTopDown(model);
   }
