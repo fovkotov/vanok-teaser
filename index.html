@@ -3150,15 +3150,17 @@ function mountSignStamp(host) {
     if (!marks.length || !host.isConnected) return;
     const h = host.clientHeight;
     if (host.clientWidth < 2 || h < 2) return;
+    const mobileInk = matchMedia('(max-width: 440px)').matches ? 1.2 : 1;
     for (const mark of marks) {
       const rig = mark.kind === 'apple' ? appleRig : stampRig;
       const fitted = (SIZE * rig.scale / viewH) * h;
       // Stock files pad the seal. Custom exports fill the canvas, so they
       // take the seal size: 505/539 on the circle, 460/537 on the apple.
       // imprintScale is the apple «Масштаб принта»: 1 is that current width.
-      const imgW = mark.kind === 'apple'
+      // Mobile imprints are 1.2× from the first paint, so the dry-in matches.
+      const imgW = (mark.kind === 'apple'
         ? fitted * (mark.custom ? APPLE_INK_FRAC : 1) * rig.imprintScale
-        : (mark.custom ? fitted : fitted / INK_FRAC);
+        : (mark.custom ? fitted : fitted / INK_FRAC)) * mobileInk;
       mark.el.style.left = `calc(${mark.px * 100}% + ${rig.offsetX}px)`;
       mark.el.style.top = `calc(${mark.py * 100}% + ${rig.offsetY}px)`;
       mark.el.style.width = imgW + 'px';
