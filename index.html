@@ -4230,6 +4230,8 @@ function mountViewportApple() {
   let appleFile = PLAIN_APPLE_FILE;
   let xInput = null;
   let topInput = null;
+  let screenTopInput = null;
+  let appleTopHeld = false;
   let sizeInput = null;
   let shadeInput = null;
   let enterXInput = null;
@@ -4535,22 +4537,25 @@ function mountViewportApple() {
       const k = mobileFrameScale();
       VIEW_APPLE.size = 5.65 * k;
       VIEW_APPLE.xPx = 111 * k;
-      VIEW_APPLE.topPx = 18 * k;
+      if (!appleTopHeld) VIEW_APPLE.topPx = 18 * k;
     } else {
       VIEW_APPLE.xPx = desktopAppleX(Math.max(innerWidth, 1));
-      VIEW_APPLE.topPx = 5;
+      if (!appleTopHeld) VIEW_APPLE.topPx = 5;
       VIEW_APPLE.size = 1.54;
     }
     writeAppleSlider(xInput, 'xPx', (v) => Math.round(v) + ' px');
     writeAppleSlider(topInput, 'topPx', (v) => Math.round(v) + ' px');
+    writeAppleSlider(screenTopInput, 'topPx', (v) => Math.round(v) + ' px');
     writeAppleSlider(sizeInput, 'size', (v) => Math.round(v * 100) + '%');
     syncEnterReadout();
   }
   function writeAppleSlider(input, keyName, format) {
     if (!input) return;
+    input.dataset.sync = '1';
     input.value = String(VIEW_APPLE[keyName]);
     const label = input.parentElement && input.parentElement.querySelector('i');
     if (label) label.textContent = format(Number(input.value));
+    input.dataset.sync = '';
   }
   function paintFlySlider(input, absolute, format) {
     if (!input) return;
@@ -4834,6 +4839,7 @@ function mountViewportApple() {
     if (xInput) {
       xInput.max = String(Math.ceil(w + 400));
       topInput.max = String(Math.ceil(h + 400));
+      if (screenTopInput) screenTopInput.max = topInput.max;
     }
     if (enterXInput) {
       enterXInput.max = String(Math.ceil(w + 400));
@@ -4945,8 +4951,8 @@ function mountViewportApple() {
     input.value = String(VIEW_APPLE[keyName]);
     input.setAttribute('aria-label', label);
     const paintValue = () => { value.textContent = format(Number(input.value)); };
-    input.addEventListener('input', (event) => {
-      if (!event.isTrusted) return;
+    input.addEventListener('input', () => {
+      if (input.dataset.sync === '1') return;
       VIEW_APPLE[keyName] = Number(input.value);
       paintValue();
       if (after) after();
@@ -5192,9 +5198,16 @@ function mountViewportApple() {
     syncEnterReadout();
     placeApple();
   }
+  const pxFromTop = (v) => Math.round(v) + ' px';
+  function holdAppleHeight() {
+    appleTopHeld = true;
+    writeAppleSlider(topInput, 'topPx', pxFromTop);
+    writeAppleSlider(screenTopInput, 'topPx', pxFromTop);
+    afterRestPose();
+  }
   addHeading('Положение');
   xInput = addSlider('По горизонтали', 'xPx', -400, Math.ceil(innerWidth + 400), 1, (v) => Math.round(v) + ' px', afterRestPose);
-  topInput = addSlider('От верха экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, (v) => Math.round(v) + ' px', afterRestPose);
+  topInput = addSlider('От верха экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, pxFromTop, holdAppleHeight);
   sizeInput = addSlider('Размер', 'size', 0.2, 8, 0.01, (v) => Math.round(v * 100) + '%', afterRestPose);
   addHeading('Поворот яблока');
   addSlider('X', 'rotX', -180, 180, 0.1, (v) => v.toFixed(1) + '°', afterRestPose);
@@ -5216,6 +5229,7 @@ function mountViewportApple() {
   shadeChecks.append(shadeLabel);
   panel.append(shadeChecks);
   addHeading('Источник света');
+  screenTopInput = addSlider('Высота от экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, pxFromTop, holdAppleHeight);
   const lightChecks = document.createElement('div');
   lightChecks.className = 'checks';
   const lightLabel = document.createElement('label');
