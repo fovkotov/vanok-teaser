@@ -33,7 +33,7 @@
     --bg: #80a6bc;
   }
   html[data-theme="3"] .site-credits {
-    color: rgba(255, 255, 255, 0.32);
+    color: #ffffff;
   }
 
   * { box-sizing: border-box; }
@@ -330,7 +330,7 @@
   .site-credits {
     z-index: 4;
     margin: 0;
-    color: color-mix(in srgb, var(--blue) 48%, transparent);
+    color: var(--blue);
     font-family: var(--grotesk);
     font-weight: 400;
     font-size: calc(14 * var(--k));
@@ -684,6 +684,9 @@
   html.page-ready #sign-host,
   html.page-ready .apple-view.apple-shown {
     opacity: 1;
+  }
+  html.page-ready .site-credits {
+    opacity: 0.32;
   }
   html:not(.page-ready) .crosshair,
   html:not(.page-ready) .draw-sig-btn,

@@ -26,6 +26,12 @@
     ];
   }
   var REMOVED_IDS = {
+    'sig-mvyexo5j-xmsh': 1,
+    'sig-mvyeparj-23ga': 1,
+    'sig-mvspqm84-28xa': 1,
+    'sig-mvyevic1-q47y': 1,
+    'sig-mvyet5rf-cvjd': 1,
+    'sig-mvjwhluk-rnq4': 1,
     'sig-mvipeu03-ril8': 1,
     'sig-mvipa8wh-qk2b': 1,
     'sig-mvioj76c-6nf4': 1,
