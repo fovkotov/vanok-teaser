@@ -7,6 +7,7 @@
 <link rel="icon" href="design/stub/favicon.png" type="image/png">
 <link rel="icon" href="design/stub/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="design/stub/apple-touch-icon.png">
+<link rel="preload" href="design/stub/wordmark.svg" as="image">
 <style>
   /* Desktop frame 110:1711 is 1440×800. Mobile frame 141:1647 is 375×812.
      --k scales a frame from its own width. Mobile shows through 440px.
@@ -1197,7 +1198,7 @@
 </head>
 <body>
   <section class="frame desk" aria-label="Desktop">
-    <img class="wordmark" src="design/stub/wordmark.svg" alt="">
+    <img class="wordmark" src="design/stub/wordmark.svg" alt="" fetchpriority="high">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="">
     <img class="lettering lettering-2" src="design/stub/wordmark-green.svg" alt="">
     <img class="lettering lettering-3" src="design/stub/wordmark-star.svg" alt="">
@@ -1318,7 +1319,7 @@
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js"></script>
+<script src="design/stub/signatures.js?v=templates"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -1351,10 +1352,14 @@ const THEME_HALF_FILE = 'design/playground/models/apple_half_green_003.glb';
 const THEME_STAMP_FILE = 'design/playground/models/stamp_round_smooth.glb';
 // Playground thumbnails: Печать гладкая, Яблоко зелёное надкусанное,
 // Половинка зелёная детальная. Clay material stays on the mat look.
-// Detail and mat keep apple_whole_folder3.glb. Tabs 01 and plane share
-// apple_whole_01.glb. Shader 01 paints tab 01; plane stays a solid color.
-// Clay replaces materials; detail keeps maps.
+// Detail and mat keep apple_whole_folder3.glb. Tab 01 keeps the full
+// apple_whole_01.glb scene and loads it only when that tab is opened.
+// The plane tab, which the classic page shows first, uses geometry-only
+// copies so the 37 MB playground scene is not downloaded.
 const TAB01_APPLE_FILE = 'design/playground/models/apple_whole_01.glb';
+const PLANE_APPLE_FILE = 'design/stub/models/apple-corner.glb';
+const PLANE_HALF_FILE = 'design/stub/models/apple-half.glb';
+const PLANE_STAMP_FILE = 'design/stub/models/stamp-round.glb';
 const MAT_APPLE_FILE = 'design/playground/models/apple_whole_folder3.glb';
 const MAT_HALF_FILE = 'design/playground/models/apple_half_green_003.glb';
 const MAT_STAMP_FILE = 'design/playground/models/stamp_round_smooth.glb';
@@ -1395,9 +1400,9 @@ const MODEL_TABS = [
   {
     id: 'plane',
     label: 'plane',
-    apple: TAB01_APPLE_FILE,
-    half: THEME_HALF_FILE,
-    stamp: THEME_STAMP_FILE,
+    apple: PLANE_APPLE_FILE,
+    half: PLANE_HALF_FILE,
+    stamp: PLANE_STAMP_FILE,
     look: 'plane',
   },
 ];
@@ -1415,14 +1420,14 @@ function currentModelTab() {
   }
   return MODEL_TABS[0];
 }
-// Top apple pose: folder3 on detail and mat; apple_whole_01.glb on tabs 01 and plane.
+// Top apple pose: folder3 on detail and mat; the bitten apple on tabs 01 and plane.
 // Local XYZ on the view wrapper, on top of the resting pose and the fit.
 // 1.2 is the on-screen size of that apple. «low poly natural» stays at 1.
 const DETAIL_APPLE_TURN = { x: 0, y: -170, z: 0, scale: 1.2 };
 function detailAppleTurn(tab) {
   if (!tab) return null;
   const file = tab.apple;
-  if (file !== THEME_APPLE_FILE && file !== MAT_APPLE_FILE && file !== TAB01_APPLE_FILE) return null;
+  if (file !== THEME_APPLE_FILE && file !== MAT_APPLE_FILE && file !== TAB01_APPLE_FILE && file !== PLANE_APPLE_FILE) return null;
   return DETAIL_APPLE_TURN;
 }
 // G-panel Трансформ «Яблоко»: extra pose for the corner apple only.
@@ -1434,6 +1439,10 @@ const viewAppleXform = { x: 0, y: 0, z: 0, scale: 1 };
 // The G sliders stay at 0, 0, 0, scale 1 and still add on view-xform.
 // Detail, mat, and low poly natural do not read this.
 const TAB01_APPLE_OFFSET = { y: 159, scale: 1.04 };
+function usesTab01ApplePose(file, tabId) {
+  if (file === PLANE_APPLE_FILE && tabId === 'plane') return true;
+  return file === TAB01_APPLE_FILE && (tabId === '01' || tabId === 'plane');
+}
 let refreshViewAppleXform = () => {};
 // Stamping half only, and only when it is not the low-poly half.
 // Tabs 01, detail, mat, and plane use apple_half_green_003.glb.
@@ -1682,7 +1691,7 @@ function queueChromeSample(src) {
   img.src = src;
 }
 
-queueChromeSample('design/stamps/classic/blue.png');
+queueChromeSample('design/stamps/classic/blue.webp');
 
 function chromeHexForShot(shot) {
   if (!shot || shot.kind === 'apple' || shot.file === 'gren.png') return CHROME_APPLE;
@@ -1937,16 +1946,11 @@ function applyPlane(root, colorHex) {
   });
 }
 
-loadGltf(PLAIN_APPLE_FILE);
-loadGltf(PLAIN_HALF_FILE);
-loadGltf(PLAIN_STAMP_FILE);
-loadGltf(THEME_APPLE_FILE);
-loadGltf(TAB01_APPLE_FILE);
-loadGltf(THEME_HALF_FILE);
-loadGltf(THEME_STAMP_FILE);
-loadGltf(MAT_APPLE_FILE);
-loadGltf(MAT_HALF_FILE);
-loadGltf(MAT_STAMP_FILE);
+// The open tab only. Switching L tabs fetches the other models then.
+const bootTab = currentModelTab();
+loadGltf(bootTab.apple);
+loadGltf(bootTab.half);
+loadGltf(bootTab.stamp);
 
 const pageScroll = { boost: 15 };
 
@@ -2175,16 +2179,16 @@ function orientHalfCut(model) {
 // оставляет оттиск там и уходит обратно вниз. G — настройки этого жеста, только на время вкладки.
 // Classic teaser: the round blue seal and the green apple only.
 const STAMP_IMPRINTS = [
-  { file: 'blue.png', src: 'design/stamps/classic/blue.png' },
+  { file: 'blue.png', src: 'design/stamps/classic/blue.webp' },
 ];
 const APPLE_IMPRINTS = [
-  { file: 'gren.png', src: 'design/stamps/classic/gren.png' },
+  { file: 'gren.png', src: 'design/stamps/classic/gren.webp' },
 ];
 const KEY2_STAMP_IMPRINTS = [
-  { file: 'blue.png', src: 'design/stamps/classic/blue.png' },
+  { file: 'blue.png', src: 'design/stamps/classic/blue.webp' },
 ];
 const KEY2_APPLE_IMPRINTS = [
-  { file: 'gren.png', src: 'design/stamps/classic/gren.png' },
+  { file: 'gren.png', src: 'design/stamps/classic/gren.webp' },
 ];
 
 function planeSources(kind) {
@@ -2264,12 +2268,7 @@ const introImages = [
 ];
 const introT0 = window.__vanokIntroT0 || performance.now();
 Promise.race([
-  Promise.all([
-    loadGltf(PLAIN_APPLE_FILE),
-    loadGltf(PLAIN_HALF_FILE),
-    loadGltf(PLAIN_STAMP_FILE),
-    ...introImages.map(decodeIntroImage),
-  ]),
+  Promise.all(introImages.map(decodeIntroImage)),
   new Promise((resolve) => setTimeout(resolve, INTRO_LIMIT_MS)),
 ]).then(() => {
   const wait = Math.max(0, INTRO_BEAT_MS - (performance.now() - introT0));
@@ -4215,6 +4214,11 @@ function mountViewportApple() {
   ground.renderOrder = 1;
   scene.add(ground);
 
+  // Depth above the ground plane, not the screen. The old +0.012 left a
+  // floating contact shadow. Negative plants the body into the surface
+  // so the shadow sits under the apple. Roll returns to this same rest.
+  const APPLE_GROUND_CLEARANCE = -0.7;
+
   const tilt = new THREE.Group();
   tilt.rotation.order = 'XYZ';
   scene.add(tilt);
@@ -4228,8 +4232,6 @@ function mountViewportApple() {
   let appleFile = PLAIN_APPLE_FILE;
   let xInput = null;
   let topInput = null;
-  let screenTopInput = null;
-  let appleTopHeld = false;
   let sizeInput = null;
   let shadeInput = null;
   let enterXInput = null;
@@ -4412,7 +4414,7 @@ function mountViewportApple() {
     const file = appleFile || currentModelTab().apple;
     const pose = detailAppleTurn({ apple: file });
     const tabId = currentModelTab().id;
-    const tab01 = file === TAB01_APPLE_FILE && (tabId === '01' || tabId === 'plane');
+    const tab01 = usesTab01ApplePose(file, tabId);
     const turnScale = (pose ? pose.scale : 1) * (tab01 ? TAB01_APPLE_OFFSET.scale : 1) * (viewAppleXform.scale || 1);
     return appleScreenRadius() * turnScale;
   }
@@ -4535,15 +4537,14 @@ function mountViewportApple() {
       const k = mobileFrameScale();
       VIEW_APPLE.size = 5.65 * k;
       VIEW_APPLE.xPx = 111 * k;
-      if (!appleTopHeld) VIEW_APPLE.topPx = 18 * k;
+      VIEW_APPLE.topPx = 18 * k;
     } else {
       VIEW_APPLE.xPx = desktopAppleX(Math.max(innerWidth, 1));
-      if (!appleTopHeld) VIEW_APPLE.topPx = 5;
+      VIEW_APPLE.topPx = 5;
       VIEW_APPLE.size = 1.54;
     }
     writeAppleSlider(xInput, 'xPx', (v) => Math.round(v) + ' px');
     writeAppleSlider(topInput, 'topPx', (v) => Math.round(v) + ' px');
-    writeAppleSlider(screenTopInput, 'topPx', (v) => Math.round(v) + ' px');
     writeAppleSlider(sizeInput, 'size', (v) => Math.round(v * 100) + '%');
     syncEnterReadout();
   }
@@ -4651,7 +4652,7 @@ function mountViewportApple() {
     tilt.updateMatrixWorld(true);
     shadowBox.setFromObject(tilt);
     if (!shadowBox.isEmpty() && Number.isFinite(shadowBox.min.y)) {
-      tilt.position.y += 0.012 - shadowBox.min.y;
+      tilt.position.y += APPLE_GROUND_CLEARANCE - shadowBox.min.y;
     }
   }
 
@@ -4802,7 +4803,7 @@ function mountViewportApple() {
     let focusX = tilt.position.x;
     let focusZ = tilt.position.z;
     if (!shadowBox.isEmpty() && Number.isFinite(shadowBox.min.y)) {
-      tilt.position.y = -shadowBox.min.y + 0.012;
+      tilt.position.y = -shadowBox.min.y + APPLE_GROUND_CLEARANCE;
       tilt.updateMatrixWorld(true);
       shadowBox.setFromObject(tilt);
       shadowBox.getSize(shadowSize);
@@ -4837,7 +4838,6 @@ function mountViewportApple() {
     if (xInput) {
       xInput.max = String(Math.ceil(w + 400));
       topInput.max = String(Math.ceil(h + 400));
-      if (screenTopInput) screenTopInput.max = topInput.max;
     }
     if (enterXInput) {
       enterXInput.max = String(Math.ceil(w + 400));
@@ -5196,16 +5196,9 @@ function mountViewportApple() {
     syncEnterReadout();
     placeApple();
   }
-  const pxFromTop = (v) => Math.round(v) + ' px';
-  function holdAppleHeight() {
-    appleTopHeld = true;
-    writeAppleSlider(topInput, 'topPx', pxFromTop);
-    writeAppleSlider(screenTopInput, 'topPx', pxFromTop);
-    afterRestPose();
-  }
   addHeading('Положение');
   xInput = addSlider('По горизонтали', 'xPx', -400, Math.ceil(innerWidth + 400), 1, (v) => Math.round(v) + ' px', afterRestPose);
-  topInput = addSlider('От верха экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, pxFromTop, holdAppleHeight);
+  topInput = addSlider('От верха экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, (v) => Math.round(v) + ' px', afterRestPose);
   sizeInput = addSlider('Размер', 'size', 0.2, 8, 0.01, (v) => Math.round(v * 100) + '%', afterRestPose);
   addHeading('Поворот яблока');
   addSlider('X', 'rotX', -180, 180, 0.1, (v) => v.toFixed(1) + '°', afterRestPose);
@@ -5227,7 +5220,6 @@ function mountViewportApple() {
   shadeChecks.append(shadeLabel);
   panel.append(shadeChecks);
   addHeading('Источник света');
-  screenTopInput = addSlider('Высота от экрана', 'topPx', -400, Math.ceil(innerHeight + 400), 1, pxFromTop, holdAppleHeight);
   const lightChecks = document.createElement('div');
   lightChecks.className = 'checks';
   const lightLabel = document.createElement('label');
@@ -5412,9 +5404,9 @@ function mountViewportApple() {
     const file = turn.userData.appleFile;
     const pose = detailAppleTurn({ apple: file });
     const tabId = currentModelTab().id;
-    // Tabs 01 and plane share apple_whole_01.glb. Both get DETAIL_APPLE_TURN
-    // plus TAB01_APPLE_OFFSET. low, detail, and mat do not.
-    const tab01 = file === TAB01_APPLE_FILE && (tabId === '01' || tabId === 'plane');
+    // Plane uses the light bitten apple; tab 01 uses apple_whole_01.glb.
+    // Both get DETAIL_APPLE_TURN plus TAB01_APPLE_OFFSET. low, detail, and mat do not.
+    const tab01 = usesTab01ApplePose(file, tabId);
     const d = Math.PI / 180;
     turn.rotation.order = 'XYZ';
     turn.rotation.set(

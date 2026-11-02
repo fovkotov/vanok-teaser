@@ -21,9 +21,44 @@
   ];
   if (document.documentElement.getAttribute('data-seals') === 'pair') {
     PRESETS = [
-      { id: 'preset-classic-blue', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/classic/blue.png', colorName: 'blue', castHex: 0x0a1ae9 },
-      { id: 'preset-classic-gren', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/classic/gren.png', colorName: 'green', castHex: 0x8cc88c }
+      { id: 'preset-classic-blue', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/classic/blue.webp', colorName: 'blue', castHex: 0x0a1ae9 },
+      { id: 'preset-classic-gren', kind: 'apple', preset: true, text: 'Vanök Regular', src: 'design/stamps/classic/gren.webp', colorName: 'green', castHex: 0x8cc88c }
     ];
+    // Extra library defaults for the classic page only. Lab keeps folder-42.
+    // These live under templates/ so their blue.webp / gren.webp names stay
+    // out of the random click pool (that pool keys off the stock basenames).
+    [
+      ['blue', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-1', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-2', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-3', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-4', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-5', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-6', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-7', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-8', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-9', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-10', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-11', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-12', 'stamp', 'blue', 0x0a1ae9],
+      ['blue-13', 'stamp', 'blue', 0x0a1ae9],
+      ['gren', 'apple', 'green', 0x8cc88c],
+      ['gren-1', 'apple', 'green', 0x8cc88c],
+      ['gren-2', 'apple', 'green', 0x8cc88c],
+      ['gren-3', 'apple', 'green', 0x8cc88c],
+      ['gren-4', 'apple', 'green', 0x8cc88c],
+      ['gren-5', 'apple', 'green', 0x8cc88c]
+    ].forEach(function (row) {
+      PRESETS.push({
+        id: 'preset-classic-tpl-' + row[0],
+        kind: row[1],
+        preset: true,
+        text: 'Vanök Regular',
+        src: 'design/stamps/classic/templates/' + row[0] + '.webp',
+        colorName: row[2],
+        castHex: row[3]
+      });
+    });
   }
   var REMOVED_IDS = {
     'sig-mvyexo5j-xmsh': 1,
@@ -126,11 +161,20 @@
   var STOCK_FILES = {
     'blue.png': 1,
     'pink.png': 1,
-    'gren.png': 1
+    'gren.png': 1,
+    'blue.webp': 1,
+    'pink.webp': 1,
+    'gren.webp': 1
   };
   var adopted = {};
   function fileName(src) {
     return String(src || '').split('/').pop().split('?')[0];
+  }
+  // Stock click stamps share basenames with the classic template folder.
+  // A path under /templates/ is a library default, not a click-pool file.
+  function isStockFile(src) {
+    if (String(src || '').indexOf('/templates/') !== -1) return false;
+    return !!STOCK_FILES[fileName(src)];
   }
   function listedSeal(item) {
     if (!item) return false;
@@ -150,7 +194,7 @@
         for (var i = 0; i < PRESETS.length; i++) {
           if (PRESETS[i].id === id) preset = PRESETS[i];
         }
-        if (preset && !STOCK_FILES[fileName(preset.src)]) adopted[id] = 1;
+        if (preset && !isStockFile(preset.src)) adopted[id] = 1;
       });
     } catch (err) {}
   }
@@ -161,7 +205,7 @@
   }
   function ensurePooled(item) {
     if (!item || !item.preset) return;
-    if (STOCK_FILES[fileName(item.src)]) return;
+    if (isStockFile(item.src)) return;
     if (adopted[item.id]) return;
     adopted[item.id] = 1;
     saveAdopted();
@@ -172,7 +216,7 @@
       var mine = userItems().filter(function (item) { return item.kind === which && listedSeal(item); });
       var extra = PRESETS.filter(function (item) {
         if (item.kind !== which) return false;
-        if (STOCK_FILES[fileName(item.src)]) return true;
+        if (isStockFile(item.src)) return true;
         return adopted[item.id] && listedSeal(item);
       });
       return mine.concat(extra);
@@ -188,7 +232,7 @@
     rememberPlaced: function (which, id) { placed[which] = id; },
     placeKey: function (item) {
       if (!item) return '';
-      if (item.preset && STOCK_FILES[fileName(item.src)]) return fileName(item.src);
+      if (item.preset && isStockFile(item.src)) return fileName(item.src);
       return item.id || '';
     },
     arm: function (item) { pending = item; }
@@ -1013,7 +1057,7 @@
   }
   function catalog() {
     var presets = PRESETS.filter(function (item) {
-      if (STOCK_FILES[fileName(item.src)]) return true;
+      if (isStockFile(item.src)) return true;
       return listedSeal(item);
     });
     return userItems().filter(listedSeal).concat(presets);
@@ -1166,12 +1210,51 @@
       clipDrawing(shotCtx, name);
       drawPhoto(shotCtx, name);
       shotCtx.restore();
-      picture = '<image href="' + shot.toDataURL('image/png') + '" x="0" y="0" width="' + vb.w + '" height="' + vb.h + '"/>';
+      picture = '<image href="' + shot.toDataURL('image/webp', 0.9) + '" x="0" y="0" width="' + vb.w + '" height="' + vb.h + '"/>';
     }
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + vb.w + ' ' + vb.h + '" width="539" height="539" preserveAspectRatio="none">' +
       '<defs>' + clipMarkup(name) + '</defs>' +
       rings + '<g clip-path="url(#sig-ink-clip)">' + picture + strokeMarkup(name, hex) + '</g>' + letters + '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  function rasterToWebp(url, width, height) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        var canvas = document.createElement('canvas');
+        var w = width || img.naturalWidth || 539;
+        var h = height || img.naturalHeight || 539;
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        var out = canvas.toDataURL('image/webp', 0.9);
+        if (out.indexOf('data:image/webp') !== 0) out = canvas.toDataURL('image/png');
+        resolve(out.indexOf('data:image/') === 0 ? out : url);
+      };
+      img.onerror = function () { resolve(url); };
+      img.src = url;
+    });
+  }
+
+  function exportSealWebp(name) {
+    var vb = VB[name];
+    return rasterToWebp(exportSeal(name), vb.w * 2, vb.h * 2);
+  }
+
+  function ensureWebpSrc(item) {
+    var src = item && item.src;
+    if (typeof src !== 'string') return Promise.resolve(item);
+    if (src.indexOf('data:image/webp') === 0) return Promise.resolve(item);
+    if (src.indexOf('data:image/png') === 0 || src.indexOf('data:image/jpeg') === 0 || src.indexOf('data:image/svg+xml') === 0) {
+      return rasterToWebp(src).then(function (next) {
+        if (next && next !== src) item.src = next;
+        return item;
+      });
+    }
+    return Promise.resolve(item);
   }
 
   var fileInput = modal.querySelector('.sig-file');
@@ -1194,47 +1277,67 @@
     img.src = url;
   });
 
+  var creatingSeal = false;
   modal.querySelector('.sig-create').addEventListener('click', function (event) {
     event.preventDefault();
     event.stopPropagation();
+    if (creatingSeal) return;
     var color = selectedColor();
     var madeKind = kind;
-    var item = {
-      id: 'sig-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
-      kind: madeKind,
-      src: exportSeal(madeKind),
-      castHex: color.cast,
-      colorName: color.name,
-      text: texts[madeKind],
-      createdAt: Date.now()
-    };
-    items.unshift(item);
-    texts[madeKind] = '';
-    strokes[madeKind] = [];
-    photos[madeKind] = null;
-    photoSources[madeKind] = null;
-    drawing = null;
-    swipe = null;
-    editing = false;
-    editingLock = false;
-    clearTimeout(beginEdit.timer);
-    input.value = '';
-    redraw(madeKind);
-    paintText();
-    placeCaret();
-    try { input.blur(); } catch (err) {}
-    stampCreatedSeal(item);
-    setTimeout(function () {
-      saveLocal();
-      postItem(item);
-    }, 0);
+    var madeText = texts[madeKind];
+    creatingSeal = true;
+    exportSealWebp(madeKind).then(function (src) {
+      creatingSeal = false;
+      var item = {
+        id: 'sig-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+        kind: madeKind,
+        src: src,
+        castHex: color.cast,
+        colorName: color.name,
+        text: madeText,
+        createdAt: Date.now()
+      };
+      items.unshift(item);
+      texts[madeKind] = '';
+      strokes[madeKind] = [];
+      photos[madeKind] = null;
+      photoSources[madeKind] = null;
+      drawing = null;
+      swipe = null;
+      editing = false;
+      editingLock = false;
+      clearTimeout(beginEdit.timer);
+      input.value = '';
+      redraw(madeKind);
+      paintText();
+      placeCaret();
+      try { input.blur(); } catch (err) {}
+      stampCreatedSeal(item);
+      setTimeout(function () {
+        saveLocal();
+        postItem(item);
+      }, 0);
+    }, function () {
+      creatingSeal = false;
+    });
   });
 
   function postItem(item) {
-    fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item)
+    ensureWebpSrc(item).then(function () {
+      saveLocal();
+      return fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      });
+    }).then(function (res) {
+      if (!res || !res.ok) return null;
+      return res.json();
+    }).then(function (saved) {
+      if (!saved || saved.id !== item.id || typeof saved.src !== 'string' || saved.src === item.src) return;
+      item.src = saved.src;
+      saveLocal();
+      renderGrid();
     }).catch(function () {});
   }
   function merge(remote) {
