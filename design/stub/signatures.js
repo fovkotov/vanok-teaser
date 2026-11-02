@@ -235,7 +235,10 @@
       if (item.preset && isStockFile(item.src)) return fileName(item.src);
       return item.id || '';
     },
-    arm: function (item) { pending = item; }
+    arm: function (item) { pending = item; },
+    // Same list the library shows. Classic clicks draw from this.
+    // pool() stays the stock pair so lab and the tool tint do not change.
+    catalog: function () { return catalog(); }
   };
   window.VanokSignatures = store;
 

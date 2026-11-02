@@ -1319,7 +1319,7 @@
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=templates"></script>
+<script src="design/stub/signatures.js?v=catalog"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -2447,6 +2447,13 @@ function mountSignStamp(host) {
     const preload = new Image();
     preload.src = item.src;
   }
+  if (window.VanokSignatures && typeof window.VanokSignatures.catalog === 'function') {
+    for (const item of window.VanokSignatures.catalog()) {
+      if (!item || !item.src) continue;
+      const preload = new Image();
+      preload.src = item.src;
+    }
+  }
 
   const panel = document.createElement('aside');
   panel.className = 'stamp-panel';
@@ -3378,10 +3385,55 @@ function mountSignStamp(host) {
     return kind === 'apple' ? appleModel : stampModel;
   }
 
+  let catalogBag = [];
+  let catalogKey = '';
+  function nextCatalogSeal() {
+    const store = window.VanokSignatures;
+    if (!store || typeof store.catalog !== 'function') return null;
+    const list = (store.catalog() || []).filter((item) => {
+      return item && item.src && (item.kind === 'stamp' || item.kind === 'apple');
+    });
+    if (!list.length) return null;
+    const key = list.map((item) => item.id).join('|');
+    if (!catalogBag.length || catalogKey !== key) {
+      catalogBag = list.slice();
+      catalogKey = key;
+      for (let i = catalogBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const swap = catalogBag[i];
+        catalogBag[i] = catalogBag[j];
+        catalogBag[j] = swap;
+      }
+    }
+    return catalogBag.pop();
+  }
+  function placeAt(item, point) {
+    const hr = host.getBoundingClientRect();
+    placeSeal(item, point.px + hr.left, point.py + hr.top);
+  }
   function start(point) {
     if (!(performance.now() >= (window.__vanokStampsAt || Infinity))) return;
     if (typeof globalThis.__vanokAppleGesture === 'function' && globalThis.__vanokAppleGesture()) return;
-    const armed = window.VanokSignatures && window.VanokSignatures.peekNext();
+    const store = window.VanokSignatures;
+    const armed = store && store.peekNext();
+    if (armed && (armed.kind === 'stamp' || armed.kind === 'apple')) {
+      const rig = armed.kind === 'stamp' ? stampRig : appleRig;
+      if (!rig.file || rig.file === 'random') {
+        const forced = store.takeNext(armed.kind);
+        if (forced) {
+          placeAt(forced, point);
+          return;
+        }
+      }
+    }
+    const pair = document.documentElement.getAttribute('data-seals') === 'pair';
+    if (pair && stampRig.file === 'random' && appleRig.file === 'random') {
+      const item = nextCatalogSeal();
+      if (item) {
+        placeAt(item, point);
+        return;
+      }
+    }
     const kind = armed ? armed.kind : (pressN % 2 === 0 ? 'stamp' : 'apple');
     const rig = kind === 'stamp' ? stampRig : appleRig;
     pressN += 1;
