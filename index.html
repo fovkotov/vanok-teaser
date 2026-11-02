@@ -170,12 +170,15 @@
     width: var(--letter-w);
   }
   .desk .lettering-1 {
+    top: calc(var(--wordmark-top) + 23px);
     height: calc(var(--letter-w) * 135 / 619);
   }
   .desk .lettering-2 {
+    top: calc(var(--wordmark-top) + 32px);
     height: calc(var(--letter-w) * 82 / 702);
   }
   .desk .lettering-3 {
+    top: calc(var(--wordmark-top) + 12px);
     height: calc(var(--letter-w) * 124 / 702);
   }
 
@@ -1319,7 +1322,7 @@
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=drop-gren6"></script>
+<script src="design/stub/signatures.js?v=tpl-299gren"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -3129,12 +3132,12 @@ function mountSignStamp(host) {
     return castFromStock(kind, cast);
   }
 
-  // Theme 2 recolours every ink. Theme 1 turns every ink white.
-  // Theme 3 and default mode both draw the folder-42 prints.
+  // Themes 1 and 3 dye every ink white, the same color as their text.
+  // Theme 2 dyes every ink to its pale text color. Default keeps the source ink.
   function themeHex(ink) {
     const theme = document.documentElement.dataset.theme || '0';
     if (theme === '2') return 0xe3f4e8;
-    if (theme === '1') return 0xffffff;
+    if (theme === '1' || theme === '3') return 0xffffff;
     return null;
   }
 
@@ -3558,7 +3561,12 @@ function mountSignStamp(host) {
   }
 
   let stampGesture = 0;
-  const stampBlock = '.stamp-panel, .apple-light, .sig-modal, .draw-sig-btn, .catalog-entry, .ig-link, .site-credits, .crosshair, input, select, textarea, button, label';
+  const stampBlock = '.stamp-panel, .apple-light, .sig-modal, .draw-sig-btn, .catalog-entry, .ig-link, .soon, .site-credits, .crosshair, input, select, textarea, button, label';
+  // Next trail stamp waits until the pointer has moved about half of the
+  // wider imprint, and at least this long since the previous stamp.
+  const TRAIL_GAP = 0.425;
+  const TRAIL_INTERVAL = 110;
+  const TRAIL_START = 28;
 
   function stampBlocked(e) {
     if (!alive || (e.button && e.button !== 0)) return true;
@@ -3566,15 +3574,86 @@ function mountSignStamp(host) {
     return !!(t && t.closest && t.closest(stampBlock));
   }
 
-  function dropStamp(e) {
-    let x = e.clientX;
-    let y = e.clientY;
-    if (e.changedTouches && e.changedTouches.length && e.type === 'touchend') {
-      x = e.changedTouches[0].clientX;
-      y = e.changedTouches[0].clientY;
-    }
+  function imprintSpan() {
+    const h = host.clientHeight || window.innerHeight || 800;
+    const mobile = matchMedia('(max-width: 440px)').matches ? 1.2 : 1;
+    const stampW = (SIZE * stampRig.scale / viewH) * h / INK_FRAC * mobile;
+    const appleW = (SIZE * appleRig.scale / viewH) * h * appleRig.imprintScale * mobile;
+    return Math.max(stampW, appleW) * TRAIL_GAP;
+  }
+
+  function eventPoint(e) {
+    const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+    if (touch && String(e.type || '').indexOf('touch') === 0) return { x: touch.clientX, y: touch.clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function appleUnder(e) {
+    if (typeof globalThis.__vanokAppleGesture === 'function' && globalThis.__vanokAppleGesture()) return true;
+    return typeof globalThis.__vanokHitsApple === 'function' && globalThis.__vanokHitsApple(e);
+  }
+
+  function pointBlocked(x, y, e) {
+    if (appleUnder(e)) return true;
+    const under = document.elementFromPoint(x, y);
+    return !!(under && under.closest && under.closest(stampBlock));
+  }
+
+  const trail = { on: false, id: -1, x: 0, y: 0, lastX: 0, lastY: 0, lastAt: 0, placed: 0 };
+
+  function dropAt(x, y) {
     const hr = host.getBoundingClientRect();
+    const before = marks.length;
     start({ px: x - hr.left, py: y - hr.top });
+    return marks.length > before;
+  }
+
+  function dropStamp(e) {
+    const p = eventPoint(e);
+    dropAt(p.x, p.y);
+  }
+
+  function onTrailDown(e) {
+    if (!alive || (e.button && e.button !== 0)) return;
+    if (e.pointerType === 'touch' && e.isPrimary === false) return;
+    const p = eventPoint(e);
+    if (pointBlocked(p.x, p.y, e)) {
+      trail.on = false;
+      return;
+    }
+    trail.on = true;
+    trail.id = e.pointerId == null ? -1 : e.pointerId;
+    trail.x = trail.lastX = p.x;
+    trail.y = trail.lastY = p.y;
+    trail.lastAt = performance.now();
+    trail.placed = 0;
+  }
+
+  function onTrailMove(e) {
+    if (!trail.on) return;
+    if (e.pointerId != null && trail.id !== -1 && e.pointerId !== trail.id) return;
+    if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) return;
+    const p = eventPoint(e);
+    if (pointBlocked(p.x, p.y, e)) return;
+    const now = performance.now();
+    if (!trail.placed) {
+      if (Math.hypot(p.x - trail.x, p.y - trail.y) < TRAIL_START) return;
+      if (dropAt(trail.x, trail.y)) {
+        trail.lastX = trail.x;
+        trail.lastY = trail.y;
+        trail.lastAt = now;
+        trail.placed = 1;
+      }
+      return;
+    }
+    const dist = Math.hypot(p.x - trail.lastX, p.y - trail.lastY);
+    if (dist < imprintSpan() || now - trail.lastAt < TRAIL_INTERVAL) return;
+    if (dropAt(p.x, p.y)) {
+      trail.lastX = p.x;
+      trail.lastY = p.y;
+      trail.lastAt = now;
+      trail.placed += 1;
+    }
   }
 
   let introGesture = false;
@@ -3585,12 +3664,24 @@ function mountSignStamp(host) {
   addEventListener('touchstart', noteIntroGesture, true);
 
   function onPointerUp(e) {
+    const mine = trail.on && (e.pointerId == null || trail.id === -1 || e.pointerId === trail.id);
+    const placed = mine ? trail.placed : 0;
+    const lastX = trail.lastX;
+    const lastY = trail.lastY;
+    const lastAt = trail.lastAt;
+    if (mine) trail.on = false;
     if (introGesture || !(performance.now() >= (window.__vanokStampsAt || Infinity))) {
       introGesture = true;
       return;
     }
-    if (stampBlocked(e)) return;
+    const p = eventPoint(e);
+    if (pointBlocked(p.x, p.y, e) || stampBlocked(e)) return;
     stampGesture = Date.now();
+    if (placed > 0) {
+      const dist = Math.hypot(p.x - lastX, p.y - lastY);
+      if (dist >= imprintSpan() && performance.now() - lastAt >= TRAIL_INTERVAL) dropAt(p.x, p.y);
+      return;
+    }
     dropStamp(e);
   }
 
@@ -3604,8 +3695,17 @@ function mountSignStamp(host) {
     dropStamp(e);
   }
 
-  if (window.PointerEvent) addEventListener('pointerup', onPointerUp, true);
-  else addEventListener('touchend', onPointerUp, true);
+  if (window.PointerEvent) {
+    addEventListener('pointerdown', onTrailDown, true);
+    addEventListener('pointermove', onTrailMove, true);
+    addEventListener('pointerup', onPointerUp, true);
+    addEventListener('pointercancel', onPointerUp, true);
+  } else {
+    addEventListener('touchstart', onTrailDown, true);
+    addEventListener('touchmove', onTrailMove, true);
+    addEventListener('touchend', onPointerUp, true);
+    addEventListener('touchcancel', onPointerUp, true);
+  }
   addEventListener('click', onClick, true);
 
   function isTyping(el) {
@@ -4021,8 +4121,17 @@ function mountSignStamp(host) {
     document.documentElement.removeEventListener('vanok-models', syncToolModels);
     removeEventListener('pointerdown', noteIntroGesture, true);
     removeEventListener('touchstart', noteIntroGesture, true);
-    if (window.PointerEvent) removeEventListener('pointerup', onPointerUp, true);
-    else removeEventListener('touchend', onPointerUp, true);
+    if (window.PointerEvent) {
+      removeEventListener('pointerdown', onTrailDown, true);
+      removeEventListener('pointermove', onTrailMove, true);
+      removeEventListener('pointerup', onPointerUp, true);
+      removeEventListener('pointercancel', onPointerUp, true);
+    } else {
+      removeEventListener('touchstart', onTrailDown, true);
+      removeEventListener('touchmove', onTrailMove, true);
+      removeEventListener('touchend', onPointerUp, true);
+      removeEventListener('touchcancel', onPointerUp, true);
+    }
     removeEventListener('click', onClick, true);
     removeEventListener('keydown', onKey);
     renderer.setAnimationLoop(null);
@@ -4665,6 +4774,7 @@ function mountViewportApple() {
   let dragClock = performance.now();
   let dragBlockToken = 0;
   globalThis.__vanokAppleGesture = () => drag.blockStamp;
+  globalThis.__vanokHitsApple = (event) => hitsViewportApple(event);
 
   function clampDrag(angle) {
     return Math.max(-DRAG_LIMIT, Math.min(DRAG_LIMIT, angle));
@@ -5663,6 +5773,7 @@ function mountViewportApple() {
     removeEventListener('pointerup', onApplePointerUp);
     removeEventListener('pointercancel', onApplePointerUp);
     if (globalThis.__vanokAppleGesture) delete globalThis.__vanokAppleGesture;
+    if (globalThis.__vanokHitsApple) delete globalThis.__vanokHitsApple;
     document.documentElement.removeEventListener('vanok-models', syncViewportApple);
     renderer.setAnimationLoop(null);
     pmrem.dispose();
