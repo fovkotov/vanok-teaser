@@ -47,8 +47,7 @@
       ['gren-2', 'apple', 'green', 0x8cc88c],
       ['gren-3', 'apple', 'green', 0x8cc88c],
       ['gren-4', 'apple', 'green', 0x8cc88c],
-      ['gren-5', 'apple', 'green', 0x8cc88c],
-      ['gren-6', 'apple', 'green', 0x8cc88c]
+      ['gren-5', 'apple', 'green', 0x8cc88c]
     ].forEach(function (row) {
       PRESETS.push({
         id: 'preset-classic-tpl-' + row[0],
@@ -80,7 +79,8 @@
     'sig-mvlix8p8-vjgh': 1,
     'sig-mvjwzlh2-7pu1': 1,
     'sig-mvjwevaw-74n1': 1,
-    'sig-mvpnipgg-dbsd': 1
+    'sig-mvpnipgg-dbsd': 1,
+    'preset-classic-tpl-gren-6': 1
   };
   var VB = {
     stamp: { w: 326, h: 326 },
@@ -1061,6 +1061,7 @@
   }
   function catalog() {
     var presets = PRESETS.filter(function (item) {
+      if (REMOVED_IDS[item.id]) return false;
       if (isStockFile(item.src)) return true;
       return listedSeal(item);
     });
