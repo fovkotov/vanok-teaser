@@ -48,7 +48,10 @@
       ['gren-3', 'apple', 'green', 0x8cc88c],
       ['gren-4', 'apple', 'green', 0x8cc88c],
       ['gren-5', 'apple', 'green', 0x8cc88c],
-      ['299gren', 'apple', 'green', 0x8cc88c]
+      ['299gren', 'apple', 'green', 0x8cc88c],
+      ['56-gren', 'apple', 'green', 0x8cc88c],
+      ['56-gren-1', 'apple', 'green', 0x8cc88c],
+      ['56-gren-2', 'apple', 'green', 0x8cc88c]
     ].forEach(function (row) {
       PRESETS.push({
         id: 'preset-classic-tpl-' + row[0],

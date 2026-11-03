@@ -1322,7 +1322,7 @@
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=tpl-299gren"></script>
+<script src="design/stub/signatures.js?v=tpl-56-gren"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -2835,6 +2835,22 @@ function mountSignStamp(host) {
   const marks = [];
   const flights = [];
   const queued = [];
+  const stampCapQuery = matchMedia('(max-width: 440px)');
+  function stampCap() {
+    return stampCapQuery.matches ? 10 : 20;
+  }
+  function dropOldestStamp() {
+    const oldest = marks.shift();
+    if (oldest && oldest.el) oldest.el.remove();
+  }
+  function trimStampsToCap() {
+    while (marks.length > stampCap()) dropOldestStamp();
+  }
+  function onStampCapChange() {
+    trimStampsToCap();
+  }
+  stampCapQuery.addEventListener('change', onStampCapChange);
+  addEventListener('resize', onStampCapChange);
 
   function refreshFiles() {
     for (const ui of fileUis) {
@@ -2857,6 +2873,7 @@ function mountSignStamp(host) {
         marks.splice(i, 1);
       }
     }
+    while (marks.length >= stampCap()) dropOldestStamp();
     const el = document.createElement('div');
     el.className = 'sign-imprint';
     const img = document.createElement('img');
@@ -3604,8 +3621,9 @@ function mountSignStamp(host) {
   function dropAt(x, y) {
     const hr = host.getBoundingClientRect();
     const before = marks.length;
+    const tail = marks[marks.length - 1] || null;
     start({ px: x - hr.left, py: y - hr.top });
-    return marks.length > before;
+    return marks.length > before || marks[marks.length - 1] !== tail;
   }
 
   function dropStamp(e) {
@@ -3771,6 +3789,7 @@ function mountSignStamp(host) {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
     placeStage();
+    trimStampsToCap();
     paintMarks();
   }
   const ro = new ResizeObserver(frame);
@@ -4116,6 +4135,8 @@ function mountSignStamp(host) {
 
   return () => {
     alive = false;
+    stampCapQuery.removeEventListener('change', onStampCapChange);
+    removeEventListener('resize', onStampCapChange);
     while (flights.length) releaseFlight(flights.pop());
     document.documentElement.removeEventListener('vanok-theme', applyThemeInk);
     document.documentElement.removeEventListener('vanok-models', syncToolModels);
