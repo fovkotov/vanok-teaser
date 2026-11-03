@@ -291,7 +291,7 @@
   var applePreview = document.createElement('style');
   applePreview.textContent =
     '.sig-slide[data-kind="apple"] .sig-seal{transform:translate(-50%,-50%) scale(' + APPLE_PREVIEW_SCALE + ')}' +
-    '.sig-slide[data-kind="apple"] text{font-size:' + (13 / APPLE_PREVIEW_SCALE) + 'px}' +
+    '.sig-slide[data-kind="apple"] text{font-size:' + (13 * (VB.apple.w / 326) / APPLE_PREVIEW_SCALE) + 'px}' +
     '.sig-shape[data-kind="apple"] .sig-shape-art{transform:scale(' + APPLE_PREVIEW_SCALE + ');transform-origin:center}';
   document.head.appendChild(applePreview);
 
@@ -354,10 +354,10 @@
       text.setAttribute('fill-opacity', placeholder ? '0.45' : '1');
     });
   }
-  function textWidth(value) {
+  function textWidth(value, fontPx) {
     if (!value) return 0;
     var ctx = document.createElement('canvas').getContext('2d');
-    ctx.font = '13px Arial, Helvetica, sans-serif';
+    ctx.font = (fontPx || 13) + 'px Arial, Helvetica, sans-serif';
     return ctx.measureText(value).width;
   }
   function placeCaret() {
@@ -372,12 +372,12 @@
       var value = texts[name] || '';
       var index = input.selectionStart == null ? value.length : input.selectionStart;
       var length = path.getTotalLength();
-      var advance = textWidth(value.slice(0, index));
+      var fontPx = 13;
       if (name === 'apple') {
-        var sealBox = caret.closest('.sig-seal');
-        var boxW = sealBox ? sealBox.getBoundingClientRect().width : 326;
-        advance *= VB.apple.w / Math.max(boxW, 1);
+        var caption = path.parentNode.querySelector('text');
+        if (caption) fontPx = parseFloat(window.getComputedStyle(caption).fontSize) || fontPx;
       }
+      var advance = textWidth(value.slice(0, index), fontPx);
       var raw = pathStart(path) + advance;
       var offset = ((raw % length) + length) % length;
       var point = path.getPointAtLength(offset);
