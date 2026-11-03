@@ -291,6 +291,7 @@
   var applePreview = document.createElement('style');
   applePreview.textContent =
     '.sig-slide[data-kind="apple"] .sig-seal{transform:translate(-50%,-50%) scale(' + APPLE_PREVIEW_SCALE + ')}' +
+    '.sig-slide[data-kind="apple"] text{font-size:' + (13 / APPLE_PREVIEW_SCALE) + 'px}' +
     '.sig-shape[data-kind="apple"] .sig-shape-art{transform:scale(' + APPLE_PREVIEW_SCALE + ');transform-origin:center}';
   document.head.appendChild(applePreview);
 
@@ -580,7 +581,7 @@
       if (d >= 120 && d < 152) return 'text';
       return 'draw';
     }
-    if (nearPath(document.getElementById('sig-path-apple'), point, 18 * (VB.apple.w / 323.17))) return 'text';
+    if (nearPath(document.getElementById('sig-path-apple'), point, 18 * (VB.apple.w / 323.17) + appleInset)) return 'text';
     return 'draw';
   }
   function pathStart(path) {
@@ -611,6 +612,55 @@
     };
   }
 
+  // The apple letters sit on the inner contour and spill onto the stroke.
+  // Pull that arc inward by two lines of the current type, so the text follows
+  // the smaller shape and clears the outline.
+  var appleTextPath = '';
+  var appleInset = 0;
+  function appleTextInset() {
+    var svg = document.querySelector('.sig-slide[data-kind="apple"] svg');
+    var width = svg && svg.clientWidth;
+    if (!width) return 0;
+    return 2 * 13 * VB.apple.w / width;
+  }
+  function refitAppleText() {
+    var path = document.getElementById('sig-path-apple');
+    if (!path) return;
+    if (!appleTextPath) appleTextPath = path.getAttribute('d');
+    var dist = appleTextInset();
+    appleInset = dist;
+    path.setAttribute('d', appleTextPath);
+    if (!dist) return;
+    var length = path.getTotalLength();
+    var step = 4;
+    var pts = [];
+    for (var d = 0; d < length; d += step) pts.push(path.getPointAtLength(d));
+    var cx = 0;
+    var cy = 0;
+    for (var c = 0; c < pts.length; c++) { cx += pts[c].x; cy += pts[c].y; }
+    cx /= pts.length;
+    cy /= pts.length;
+    var top = 0;
+    for (var i = 1; i < pts.length; i++) if (pts[i].y < pts[top].y) top = i;
+    var after = pts[(top + 1) % pts.length];
+    var toward = (-(after.y - pts[top].y)) * (cx - pts[top].x) + (after.x - pts[top].x) * (cy - pts[top].y);
+    var sign = toward >= 0 ? 1 : -1;
+    var out = [];
+    for (var j = 0; j < pts.length; j++) {
+      var p = pts[j];
+      var q = pts[(j + 1) % pts.length];
+      var dx = q.x - p.x;
+      var dy = q.y - p.y;
+      var mag = Math.hypot(dx, dy) || 1;
+      out.push({
+        x: p.x + (-dy / mag) * dist * sign,
+        y: p.y + (dx / mag) * dist * sign
+      });
+    }
+    var dAttr = 'M' + out[0].x.toFixed(2) + ' ' + out[0].y.toFixed(2);
+    for (var k = 1; k < out.length; k++) dAttr += 'L' + out[k].x.toFixed(2) + ' ' + out[k].y.toFixed(2);
+    path.setAttribute('d', dAttr + 'Z');
+  }
   function showKind(next) {
     var nextKind = next === 'apple' ? 'apple' : 'stamp';
     if (nextKind !== kind) editing = false;
@@ -618,10 +668,16 @@
     modal.querySelectorAll('.sig-slide').forEach(function (slide) {
       slide.classList.toggle('is-on', slide.dataset.kind === kind);
     });
+    if (kind === 'apple') refitAppleText();
     input.value = texts[kind] || '';
     paintText();
     placeCaret();
   }
+  window.addEventListener('resize', function () {
+    if (modal.hidden || kind !== 'apple') return;
+    refitAppleText();
+    placeCaret();
+  });
 
   var swipe = null;
   function rememberPointer(event) {
@@ -1205,7 +1261,7 @@
       var path = document.getElementById('sig-path-' + name);
       var offset = path.parentNode.querySelector('textPath').getAttribute('startOffset') || '0';
       letters = '<path id="sig-export-path" d="' + xmlEscape(path.getAttribute('d')) + '" fill="none"/>' +
-        '<text fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="13">' +
+        '<text fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="' + (name === 'apple' ? 13 / APPLE_PREVIEW_SCALE * (VB.apple.w / 326) : 13) + '">' +
         '<textPath href="#sig-export-path" startOffset="' + xmlEscape(offset) + '">' + xmlEscape(value) + '</textPath></text>';
     }
     var picture = '';
