@@ -10,10 +10,10 @@
       { name: 'green', hex: '#8CC88C', cast: 0x8cc88c }
     ];
   }
-  var KEY = 'vanok_signatures_v1';
-  var CLEARED = 'vanok_signatures_v1_cleared';
-  var POOL_KEY = 'vanok_signature_pool_v1';
+  var KEY = 'vanok_signatures_v2';
+  var POOL_KEY = 'vanok_signature_pool_v2';
   var API = '/api/signatures';
+  var FILE_URL = 'design/stamps/custom-signatures.json';
   var PRESETS = [
     { id: 'preset-folder42-blue', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/folder-42/blue.png', colorName: 'blue', castHex: 0x0c6df4 },
     { id: 'preset-folder42-pink', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/folder-42/pink.png', colorName: 'pink', castHex: 0xff91f8 },
@@ -135,21 +135,19 @@
   var photoPointers = [];
   var pinch = null;
 
+  function forgetLegacy() {
+    try {
+      localStorage.removeItem('vanok_signatures_v1');
+      localStorage.removeItem('vanok_signatures_v1_cleared');
+      localStorage.removeItem('vanok_signature_pool_v1');
+    } catch (err) {}
+  }
   function loadLocal() {
     try {
-      if (localStorage.getItem(CLEARED) !== '1') {
-        localStorage.removeItem(KEY);
-        localStorage.setItem(CLEARED, '1');
-        return [];
-      }
       var raw = localStorage.getItem(KEY);
       var parsed = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(parsed)) return [];
-      var kept = parsed.filter(validItem);
-      if (kept.length !== parsed.length) {
-        try { localStorage.setItem(KEY, JSON.stringify(kept)); } catch (err) {}
-      }
-      return kept;
+      return parsed.filter(validItem);
     } catch (err) {
       return [];
     }
@@ -218,8 +216,11 @@
 
   var store = {
     pool: function (which) {
-      var mine = userItems().filter(function (item) { return item.kind === which && listedSeal(item); });
+      var mine = userItems().filter(function (item) {
+        return item.kind === which && listedSeal(item) && !REMOVED_IDS[item.id];
+      });
       var extra = PRESETS.filter(function (item) {
+        if (REMOVED_IDS[item.id]) return false;
         if (item.kind !== which) return false;
         if (isStockFile(item.src)) return true;
         return adopted[item.id] && listedSeal(item);
@@ -270,7 +271,7 @@
         '<button type="button" class="sig-create">Create Signature<span class="sig-create-mark" aria-hidden="true"></span></button>' +
         '<input class="sig-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">' +
       '</div>' +
-      '<input class="sig-input" type="text" maxlength="160" autocomplete="off" aria-label="Signature text">' +
+      '<input id="sig-input" class="sig-input" type="text" maxlength="160" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="Signature text">' +
     '</div>' +
     '<div class="sig-shapes" inert>' +
       '<div class="sig-head"><div class="sig-head-side">' +
@@ -291,7 +292,7 @@
   var applePreview = document.createElement('style');
   applePreview.textContent =
     '.sig-slide[data-kind="apple"] .sig-seal{transform:translate(-50%,-50%) scale(' + APPLE_PREVIEW_SCALE + ')}' +
-    '.sig-slide[data-kind="apple"] text{font-size:' + (13 * (VB.apple.w / 326) / APPLE_PREVIEW_SCALE) + 'px}' +
+    '.sig-slide[data-kind="apple"] text{font-size:' + (13 * (VB.apple.w / 326) / APPLE_PREVIEW_SCALE) + 'px;-webkit-text-size-adjust:100%;text-size-adjust:100%}' +
     '.sig-shape[data-kind="apple"] .sig-shape-art{transform:scale(' + APPLE_PREVIEW_SCALE + ');transform-origin:center}';
   document.head.appendChild(applePreview);
 
@@ -305,6 +306,7 @@
           '<text text-anchor="start" fill="#0c6df4">' +
             '<textPath href="#sig-path-' + name + '" startOffset="' + offset + '">Type Here...</textPath>' +
           '</text>' +
+          '<text class="sig-probe" x="0" y="24" fill="transparent" aria-hidden="true">Mg</text>' +
           '<line class="sig-caret" x1="0" y1="-7" x2="0" y2="5" stroke-width="1.4" stroke-linecap="round"></line>' +
         '</svg>' +
       '</div>' +
@@ -388,40 +390,175 @@
       caret.classList.add('is-on');
     });
   }
-  // Safari dismisses the keyboard when the focused field is a 1px invisible
-  // box, or when the opening touch is cancelled. Keep a real field inside
-  // the visual viewport and follow it while the keyboard animates.
-  function pinInput() {
-    var vv = window.visualViewport;
-    var top = vv ? vv.offsetTop : 0;
-    var left = vv ? vv.offsetLeft : 0;
-    input.style.top = top + 'px';
-    input.style.left = left + 'px';
-    input.style.width = '48px';
-    input.style.height = '24px';
-    input.style.opacity = '1';
+  // iOS Safari shows the keyboard only when the touch lands on a real field:
+  // hit-testable (not pointer-events:none), font-size >= 16px, inside the
+  // visual viewport, focused by the gesture itself. preventDefault on that
+  // touch cancels it. Clip the field to the seal's text band so the canvas
+  // still receives drawing hits inside the shape.
+  var dismissEdit = false;
+  var editingLock = false;
+  function ringClip(w, h) {
+    var cx = w / 2;
+    var cy = h / 2;
+    function ellipse(rx, ry, sweep) {
+      return 'M ' + (cx - rx).toFixed(2) + ' ' + cy.toFixed(2) +
+        ' a ' + rx.toFixed(2) + ' ' + ry.toFixed(2) + ' 0 1 ' + sweep + ' ' + (2 * rx).toFixed(2) + ' 0' +
+        ' a ' + rx.toFixed(2) + ' ' + ry.toFixed(2) + ' 0 1 ' + sweep + ' ' + (-2 * rx).toFixed(2) + ' 0 Z';
+    }
+    // Opposite winding so the hole survives evenodd and nonzero.
+    return 'path(evenodd, "' + ellipse(152 * w / 326, 152 * h / 326, 1) + ' ' + ellipse(120 * w / 326, 120 * h / 326, 0) + '")';
   }
+  function appleClip(rect) {
+    var pts = appleHitLoop;
+    var half = 18 * (VB.apple.w / 323.17) + (appleInset || 0);
+    if (!pts || pts.length < 8) {
+      var path = document.getElementById('sig-path-apple');
+      var length = path && path.getTotalLength();
+      if (!length) return ringClip(rect.width, rect.height);
+      var step = Math.max(8, length / 90);
+      pts = [];
+      for (var d = 0; d < length; d += step) pts.push(path.getPointAtLength(d));
+    }
+    var sx = rect.width / VB.apple.w;
+    var sy = rect.height / VB.apple.h;
+    var left = [];
+    var right = [];
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i];
+      var q = pts[(i + 1) % pts.length];
+      var dx = q.x - p.x;
+      var dy = q.y - p.y;
+      var mag = Math.hypot(dx, dy) || 1;
+      var nx = -dy / mag * half;
+      var ny = dx / mag * half;
+      left.push([(p.x + nx) * sx, (p.y + ny) * sy]);
+      right.push([(p.x - nx) * sx, (p.y - ny) * sy]);
+    }
+    var poly = left.concat(right.reverse());
+    if (poly.length < 3) return 'none';
+    var dAttr = 'M ' + poly[0][0].toFixed(1) + ' ' + poly[0][1].toFixed(1);
+    for (var n = 1; n < poly.length; n++) dAttr += ' L ' + poly[n][0].toFixed(1) + ' ' + poly[n][1].toFixed(1);
+    return 'path("' + dAttr + ' Z")';
+  }
+  function armInput() {
+    if (modal.hidden || !editor.classList.contains('is-on')) {
+      input.style.pointerEvents = 'none';
+      input.style.clipPath = '';
+      return;
+    }
+    var seal = modal.querySelector('.sig-slide[data-kind="' + kind + '"] .sig-seal');
+    if (!seal) return;
+    var rect = seal.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    input.style.pointerEvents = 'auto';
+    input.style.opacity = '1';
+    input.style.fontSize = '16px';
+    input.style.left = rect.left + 'px';
+    input.style.top = rect.top + 'px';
+    input.style.width = rect.width + 'px';
+    input.style.height = rect.height + 'px';
+    var clip = kind === 'apple' ? appleClip(rect) : ringClip(rect.width, rect.height);
+    input.style.clipPath = clip;
+    input.style.webkitClipPath = clip;
+    var vv = window.visualViewport;
+    if (document.activeElement === input && vv) {
+      var bottom = vv.offsetTop + vv.height;
+      var overlap = Math.min(rect.bottom, bottom) - Math.max(rect.top, vv.offsetTop);
+      if (overlap < 24) {
+        input.style.clipPath = 'none';
+        input.style.webkitClipPath = 'none';
+        input.style.top = (vv.offsetTop + 4) + 'px';
+        input.style.left = (vv.offsetLeft + Math.max(0, (vv.width - 48) / 2)) + 'px';
+        input.style.width = '48px';
+        input.style.height = '24px';
+      }
+    }
+  }
+  function pinInput() { armInput(); }
   function trackInput() {
-    if (document.activeElement === input) pinInput();
+    if (!modal.hidden && editor.classList.contains('is-on')) armInput();
   }
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', trackInput);
     window.visualViewport.addEventListener('scroll', trackInput);
   }
-  var editingLock = false;
-  function beginEdit() {
+  // Chrome scales SVG font-size px by the viewBox and by the apple seal's
+  // CSS scale, so the stylesheet size already matches the circle. Safari
+  // does not (text-size-adjust, or the scale applied once too often). Measure
+  // a horizontal "Mg" on both seals and correct only the apple.
+  function paintedLetterHeight(slide) {
+    var probe = slide.querySelector('.sig-probe');
+    if (!probe) return 0;
+    var boxH = 0;
+    var extH = 0;
+    try {
+      var box = probe.getBoundingClientRect();
+      boxH = box.height || 0;
+      var ext = probe.getExtentOfChar(0);
+      var ctm = probe.getScreenCTM();
+      if (ext && ctm && ext.height) extH = ext.height * Math.hypot(ctm.c, ctm.d);
+    } catch (err) {}
+    if (boxH > 0.5) return boxH;
+    return extH;
+  }
+  function matchAppleLetterHeight() {
+    var stampSlide = modal.querySelector('.sig-slide[data-kind="stamp"]');
+    var appleSlide = modal.querySelector('.sig-slide[data-kind="apple"]');
+    if (!stampSlide || !appleSlide) return null;
+    var hidden = [];
+    [stampSlide, appleSlide].forEach(function (slide) {
+      if (getComputedStyle(slide).display === 'none') {
+        slide.style.display = 'block';
+        hidden.push(slide);
+      }
+    });
+    var result = null;
+    try {
+      var nodes = appleSlide.querySelectorAll('text');
+      for (var i = 0; i < nodes.length; i++) nodes[i].style.fontSize = '';
+      void appleSlide.offsetWidth;
+      var stampH = paintedLetterHeight(stampSlide);
+      var appleH = paintedLetterHeight(appleSlide);
+      var guard = 0;
+      while (stampH > 0.5 && appleH > 0.5 && Math.abs(stampH - appleH) / stampH > 0.02 && guard < 4) {
+        guard += 1;
+        var probe = appleSlide.querySelector('.sig-probe');
+        var current = parseFloat(window.getComputedStyle(probe).fontSize) || 0;
+        if (!(current > 0)) break;
+        var next = current * (stampH / appleH);
+        for (var n = 0; n < nodes.length; n++) nodes[n].style.fontSize = next + 'px';
+        void appleSlide.offsetWidth;
+        var again = paintedLetterHeight(appleSlide);
+        if (!(again > 0.5) || Math.abs(again - appleH) < 0.25) break;
+        appleH = again;
+      }
+      result = { stampH: stampH, appleH: appleH };
+    } finally {
+      hidden.forEach(function (slide) { slide.style.display = ''; });
+    }
+    return result;
+  }
+  function enterEdit() {
+    var entering = !editing;
     editing = true;
-    editingLock = true;
-    input.value = texts[kind] || '';
+    dismissEdit = false;
+    if (entering) {
+      editingLock = true;
+      var next = texts[kind] || '';
+      if (input.value !== next) input.value = next;
+      clearTimeout(beginEdit.timer);
+      beginEdit.timer = setTimeout(function () { editingLock = false; }, 800);
+    }
     paintText();
     var caption = modal.querySelector('.sig-slide[data-kind="' + kind + '"] text');
     if (caption) caption.style.visibility = '';
     placeCaret();
-    pinInput();
+  }
+  function beginEdit() {
+    enterEdit();
+    if (document.activeElement === input) return;
     try { input.focus({ preventScroll: true }); }
     catch (err) { input.focus(); }
-    clearTimeout(beginEdit.timer);
-    beginEdit.timer = setTimeout(function () { editingLock = false; }, 800);
   }
   function paintRings() {
     var hex = selectedColor().hex;
@@ -638,6 +775,7 @@
   // the smaller shape and clears the outline.
   var appleTextPath = '';
   var appleInset = 0;
+  var appleHitLoop = null;
   function appleTextInset() {
     var svg = document.querySelector('.sig-slide[data-kind="apple"] svg');
     var width = svg && svg.clientWidth;
@@ -651,7 +789,11 @@
     var dist = appleTextInset();
     appleInset = dist;
     path.setAttribute('d', appleTextPath);
-    if (!dist) return;
+    if (!dist) {
+      appleHitLoop = null;
+      matchAppleLetterHeight();
+      return;
+    }
     var length = path.getTotalLength();
     var step = 4;
     var pts = [];
@@ -693,8 +835,10 @@
     var dAttr = 'M' + chain[0].x.toFixed(2) + ' ' + chain[0].y.toFixed(2);
     for (var k = 1; k < chain.length; k++) dAttr += 'L' + chain[k].x.toFixed(2) + ' ' + chain[k].y.toFixed(2);
     path.setAttribute('d', dAttr);
+    appleHitLoop = spun;
     var textPath = path.parentNode.querySelector('textPath');
     if (textPath) textPath.setAttribute('startOffset', '0');
+    matchAppleLetterHeight();
   }
   function segmentsCross(a, b, c, d) {
     function side(p, q, r) {
@@ -743,14 +887,18 @@
       slide.classList.toggle('is-on', slide.dataset.kind === kind);
     });
     if (kind === 'apple') refitAppleText();
+    else matchAppleLetterHeight();
     input.value = texts[kind] || '';
     paintText();
     placeCaret();
+    armInput();
   }
   window.addEventListener('resize', function () {
-    if (modal.hidden || kind !== 'apple') return;
-    refitAppleText();
+    if (modal.hidden) return;
+    if (kind === 'apple') refitAppleText();
+    else matchAppleLetterHeight();
     placeCaret();
+    armInput();
   });
 
   var swipe = null;
@@ -778,6 +926,7 @@
       if (hit === 'text') {
         if (event.pointerType !== 'mouse') {
           swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, name: name, point: point, hit: 'text', moved: false };
+          beginEdit();
           return;
         }
         event.preventDefault();
@@ -839,6 +988,7 @@
       var dx = event.clientX - swipe.x;
       var dy = event.clientY - swipe.y;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) swipe.moved = true;
+      if (swipe.hit === 'text') return;
       if (drawing && swipe.hit === 'draw') {
         drawing.points.push(pointOf(event, canvas, swipe.name));
         redraw(swipe.name);
@@ -855,10 +1005,7 @@
       }
       drawing = null;
       swipe = null;
-      if (was.hit === 'text' && !was.moved) {
-        if (event.cancelable) event.preventDefault();
-        beginEdit();
-      }
+      if (was.hit === 'text' && !was.moved) beginEdit();
     }
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
@@ -881,17 +1028,35 @@
   input.addEventListener('input', syncFromInput);
   input.addEventListener('keyup', placeCaret);
   input.addEventListener('click', placeCaret);
+  input.addEventListener('focus', function () {
+    if (!editor.classList.contains('is-on')) return;
+    enterEdit();
+  });
+  input.addEventListener('touchend', function () {
+    if (!editor.classList.contains('is-on')) return;
+    if (document.activeElement !== input) beginEdit();
+  });
   input.addEventListener('blur', function () {
-    if (editingLock) {
-      pinInput();
+    if (editingLock && !dismissEdit) {
+      armInput();
       try { input.focus({ preventScroll: true }); }
       catch (err) { input.focus(); }
       return;
     }
+    dismissEdit = false;
     editing = false;
+    editingLock = false;
     paintText();
     placeCaret();
   });
+  document.addEventListener('pointerdown', function (event) {
+    var t = event.target;
+    if (t && t.closest && t.closest('.sig-input')) {
+      dismissEdit = false;
+      return;
+    }
+    dismissEdit = true;
+  }, true);
   document.addEventListener('selectionchange', function () {
     if (document.activeElement === input) placeCaret();
   });
@@ -933,15 +1098,8 @@
   }
   function revealModal() {
     modalGen += 1;
-    var opening = modal.hidden;
     modal.hidden = false;
     holdLauncher(true);
-    if (!opening || motionOff()) {
-      modal.classList.add('is-open');
-      return;
-    }
-    modal.classList.remove('is-open');
-    void modal.offsetWidth;
     modal.classList.add('is-open');
   }
   function openEditor(nextKind) {
@@ -949,9 +1107,14 @@
     setScreen('editor');
     revealModal();
     showKind(nextKind || kind);
+    armInput();
     requestAnimationFrame(function () {
       redraw('stamp');
       redraw('apple');
+      if (kind === 'apple') refitAppleText();
+      else matchAppleLetterHeight();
+      placeCaret();
+      armInput();
     });
   }
   function openShapes() {
@@ -993,11 +1156,25 @@
       modal.hidden = true;
       if (typeof done === 'function') done();
     }
-    if (motionOff()) {
+    var fadeMs = 0;
+    try {
+      var styles = window.getComputedStyle(modal);
+      var props = (styles.transitionProperty || '').split(',');
+      var durs = (styles.transitionDuration || '').split(',');
+      for (var i = 0; i < props.length; i++) {
+        var prop = props[i].trim();
+        if (prop !== 'opacity' && prop !== 'all') continue;
+        var raw = (durs[i] || durs[0] || '0s').trim();
+        var n = parseFloat(raw);
+        if (!n) continue;
+        fadeMs = Math.max(fadeMs, raw.slice(-2) === 'ms' ? n : n * 1000);
+      }
+    } catch (err) {}
+    if (!fadeMs || motionOff()) {
       finish();
       return;
     }
-    var timer = setTimeout(finish, 320);
+    var timer = setTimeout(finish, fadeMs + 80);
     function onEnd(event) {
       if (event.target !== modal || event.propertyName !== 'opacity') return;
       finish();
@@ -1180,8 +1357,7 @@
       closeModal();
       return;
     }
-    if (editor.classList.contains('is-on')) openShapes();
-    else if (shapes.classList.contains('is-on')) openLibrary();
+    if (editor.classList.contains('is-on') || shapes.classList.contains('is-on')) openLibrary();
     else closeModal();
   });
   document.addEventListener('keydown', function (event) {
@@ -1211,7 +1387,9 @@
       if (isStockFile(item.src)) return true;
       return listedSeal(item);
     });
-    return userItems().filter(listedSeal).concat(presets);
+    return userItems().filter(function (item) {
+      return listedSeal(item) && !REMOVED_IDS[item.id];
+    }).concat(presets);
   }
   function addCard() {
     var button = document.createElement('button');
@@ -1446,7 +1624,8 @@
         castHex: color.cast,
         colorName: color.name,
         text: madeText,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        localOnly: true
       };
       items.unshift(item);
       texts[madeKind] = '';
@@ -1465,6 +1644,7 @@
       try { input.blur(); } catch (err) {}
       stampCreatedSeal(item);
       setTimeout(function () {
+        held[item.id] = item;
         saveLocal();
         postItem(item);
       }, 0);
@@ -1485,32 +1665,63 @@
       if (!res || !res.ok) return null;
       return res.json();
     }).then(function (saved) {
-      if (!saved || saved.id !== item.id || typeof saved.src !== 'string' || saved.src === item.src) return;
-      item.src = saved.src;
+      if (!saved || saved.id !== item.id) return;
+      item.localOnly = false;
+      if (typeof saved.src === 'string' && saved.src !== item.src) item.src = saved.src;
       saveLocal();
       renderGrid();
     }).catch(function () {});
   }
-  function merge(remote) {
-    var map = new Map();
-    remote.forEach(function (item) { if (validItem(item)) map.set(item.id, item); });
-    items.forEach(function (item) { if (!map.has(item.id)) map.set(item.id, item); });
-    items = Array.from(map.values()).sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+  var held = {};
+  function applyShared(remote) {
+    var next = [];
+    var seen = {};
+    remote.forEach(function (item) {
+      if (!validItem(item) || seen[item.id]) return;
+      seen[item.id] = 1;
+      next.push(item);
+    });
+    items.forEach(function (item) {
+      if (!item || !item.localOnly || seen[item.id] || !validItem(item)) return;
+      seen[item.id] = 1;
+      next.push(item);
+    });
+    Object.keys(held).forEach(function (id) {
+      if (seen[id] || !validItem(held[id])) return;
+      seen[id] = 1;
+      next.push(held[id]);
+    });
+    next.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+    items = next;
     saveLocal();
-  }
-  items = loadLocal();
-  loadAdopted();
-  renderGrid();
-  fetch(API).then(function (res) {
-    if (!res.ok) throw new Error('signatures');
-    return res.json();
-  }).then(function (remote) {
-    if (!Array.isArray(remote)) return;
-    remote = remote.filter(validItem);
-    merge(remote);
-    var remoteIds = {};
-    remote.forEach(function (item) { remoteIds[item.id] = true; });
-    items.forEach(function (item) { if (!remoteIds[item.id]) postItem(item); });
     renderGrid();
-  }).catch(function () {});
+  }
+  function readCatalog(res) {
+    var type = (res.headers.get('content-type') || '').toLowerCase();
+    if (!res.ok || type.indexOf('json') === -1) throw new Error('catalog');
+    return res.json();
+  }
+  function loadRemoved() {
+    return fetch('design/stamps/removed-seals.json', { cache: 'no-store' }).then(readCatalog).then(function (list) {
+      if (!Array.isArray(list)) return;
+      list.forEach(function (id) {
+        if (typeof id === 'string' && id) REMOVED_IDS[id] = 1;
+      });
+    }).catch(function () {});
+  }
+  function loadShared() {
+    fetch(API, { cache: 'no-store' }).then(readCatalog).catch(function () {
+      return fetch(FILE_URL, { cache: 'no-store' }).then(readCatalog);
+    }).then(function (remote) {
+      if (!Array.isArray(remote)) return;
+      applyShared(remote);
+    }).catch(function () {});
+  }
+  forgetLegacy();
+  loadRemoved().then(function () {
+    items = loadLocal();
+    loadAdopted();
+    renderGrid();
+    loadShared();
+  });
 })();
