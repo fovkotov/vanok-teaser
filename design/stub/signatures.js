@@ -388,6 +388,26 @@
       caret.classList.add('is-on');
     });
   }
+  // Safari dismisses the keyboard when the focused field is a 1px invisible
+  // box, or when the opening touch is cancelled. Keep a real field inside
+  // the visual viewport and follow it while the keyboard animates.
+  function pinInput() {
+    var vv = window.visualViewport;
+    var top = vv ? vv.offsetTop : 0;
+    var left = vv ? vv.offsetLeft : 0;
+    input.style.top = top + 'px';
+    input.style.left = left + 'px';
+    input.style.width = '48px';
+    input.style.height = '24px';
+    input.style.opacity = '1';
+  }
+  function trackInput() {
+    if (document.activeElement === input) pinInput();
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', trackInput);
+    window.visualViewport.addEventListener('scroll', trackInput);
+  }
   var editingLock = false;
   function beginEdit() {
     editing = true;
@@ -397,10 +417,11 @@
     var caption = modal.querySelector('.sig-slide[data-kind="' + kind + '"] text');
     if (caption) caption.style.visibility = '';
     placeCaret();
+    pinInput();
     try { input.focus({ preventScroll: true }); }
     catch (err) { input.focus(); }
     clearTimeout(beginEdit.timer);
-    beginEdit.timer = setTimeout(function () { editingLock = false; }, 400);
+    beginEdit.timer = setTimeout(function () { editingLock = false; }, 800);
   }
   function paintRings() {
     var hex = selectedColor().hex;
@@ -645,21 +666,74 @@
     var after = pts[(top + 1) % pts.length];
     var toward = (-(after.y - pts[top].y)) * (cx - pts[top].x) + (after.x - pts[top].x) * (cy - pts[top].y);
     var sign = toward >= 0 ? 1 : -1;
+    var span = 8;
     var out = [];
     for (var j = 0; j < pts.length; j++) {
-      var p = pts[j];
-      var q = pts[(j + 1) % pts.length];
-      var dx = q.x - p.x;
-      var dy = q.y - p.y;
+      var before = pts[(j - span + pts.length) % pts.length];
+      var afterPt = pts[(j + span) % pts.length];
+      var dx = afterPt.x - before.x;
+      var dy = afterPt.y - before.y;
       var mag = Math.hypot(dx, dy) || 1;
       out.push({
-        x: p.x + (-dy / mag) * dist * sign,
-        y: p.y + (dx / mag) * dist * sign
+        x: pts[j].x + (-dy / mag) * dist * sign,
+        y: pts[j].y + (dx / mag) * dist * sign
       });
     }
-    var dAttr = 'M' + out[0].x.toFixed(2) + ' ' + out[0].y.toFixed(2);
-    for (var k = 1; k < out.length; k++) dAttr += 'L' + out[k].x.toFixed(2) + ' ' + out[k].y.toFixed(2);
-    path.setAttribute('d', dAttr + 'Z');
+    out = dropOffsetLoops(out);
+    // Text starts on the upper-left of the top arc. The contour used to end
+    // back at the bottom, so a long string piled up there and never climbed
+    // the left side. Spin the loop so that start is index 0, then trace it
+    // again so the letters can continue all the way around.
+    var startAt = Math.round(out.length * 0.42) % out.length;
+    var spun = out.slice(startAt).concat(out.slice(0, startAt));
+    var chain = [];
+    for (var lap = 0; lap < 3; lap++) {
+      for (var n = 0; n < spun.length; n++) chain.push(spun[n]);
+    }
+    var dAttr = 'M' + chain[0].x.toFixed(2) + ' ' + chain[0].y.toFixed(2);
+    for (var k = 1; k < chain.length; k++) dAttr += 'L' + chain[k].x.toFixed(2) + ' ' + chain[k].y.toFixed(2);
+    path.setAttribute('d', dAttr);
+    var textPath = path.parentNode.querySelector('textPath');
+    if (textPath) textPath.setAttribute('startOffset', '0');
+  }
+  function segmentsCross(a, b, c, d) {
+    function side(p, q, r) {
+      return (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    }
+    var c1 = side(a, b, c);
+    var c2 = side(a, b, d);
+    var c3 = side(c, d, a);
+    var c4 = side(c, d, b);
+    return ((c1 > 0 && c2 < 0) || (c1 < 0 && c2 > 0)) &&
+      ((c3 > 0 && c4 < 0) || (c3 < 0 && c4 > 0));
+  }
+  // An inward offset folds at the apple's bottom notch. That fold eats the
+  // rest of the string, so letters never reach the left side.
+  function dropOffsetLoops(pts) {
+    var out = pts.slice();
+    var guard = 0;
+    var changed = true;
+    while (changed && guard < 12 && out.length > 8) {
+      changed = false;
+      guard += 1;
+      hunt: for (var i = 0; i < out.length; i++) {
+        var a = out[i];
+        var b = out[(i + 1) % out.length];
+        for (var k = i + 2; k < out.length; k++) {
+          if ((k + 1) % out.length === i) continue;
+          var c = out[k];
+          var d = out[(k + 1) % out.length];
+          if (!segmentsCross(a, b, c, d)) continue;
+          var forward = k - i;
+          var back = out.length - forward;
+          if (forward <= back) out.splice(i + 1, forward);
+          else out = out.slice(i + 1, k + 1);
+          changed = true;
+          break hunt;
+        }
+      }
+    }
+    return out;
   }
   function showKind(next) {
     var nextKind = next === 'apple' ? 'apple' : 'stamp';
@@ -702,6 +776,10 @@
       var point = pointOf(event, canvas, name);
       var hit = zone(name, point);
       if (hit === 'text') {
+        if (event.pointerType !== 'mouse') {
+          swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, name: name, point: point, hit: 'text', moved: false };
+          return;
+        }
         event.preventDefault();
         event.stopPropagation();
         beginEdit();
@@ -770,12 +848,17 @@
     function finish(event) {
       forgetPointer(event.pointerId);
       if (!swipe || event.pointerId !== swipe.id) return;
-      if (swipe.hit === 'draw' && drawing && drawing.points.length < 2 && !swipe.moved) {
-        strokes[swipe.name].pop();
-        redraw(swipe.name);
+      var was = swipe;
+      if (was.hit === 'draw' && drawing && drawing.points.length < 2 && !was.moved) {
+        strokes[was.name].pop();
+        redraw(was.name);
       }
       drawing = null;
       swipe = null;
+      if (was.hit === 'text' && !was.moved) {
+        if (event.cancelable) event.preventDefault();
+        beginEdit();
+      }
     }
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
@@ -800,6 +883,7 @@
   input.addEventListener('click', placeCaret);
   input.addEventListener('blur', function () {
     if (editingLock) {
+      pinInput();
       try { input.focus({ preventScroll: true }); }
       catch (err) { input.focus(); }
       return;
@@ -814,8 +898,10 @@
   modal.querySelectorAll('.sig-slide svg text').forEach(function (node) {
     node.style.cursor = 'text';
     node.addEventListener('pointerdown', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
+      if (event.pointerType === 'mouse') {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       beginEdit();
     });
   });
