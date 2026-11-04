@@ -42,6 +42,14 @@
   .card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
   .meta { margin: 0; font-size: 12px; line-height: 1.35; word-break: break-word; }
+  button.meta-delete { display: none; padding: 0; text-align: left; }
+  @media (hover: hover) and (min-width: 441px) {
+    .card:hover .meta-label { display: none; }
+    .card:hover button.meta-delete { display: block; }
+  }
+  @media (max-width: 440px) {
+    button.meta-delete { display: block; }
+  }
 </style>
 </head>
 <body>
@@ -54,6 +62,7 @@
 (function () {
   var API = '/api/signatures';
   var FILE_URL = 'design/stamps/custom-signatures.json';
+  var DENY_URL = 'design/stamps/removed-seals.json';
   var KEY = 'vanok_signatures_v2';
   // Classic stub.html is data-seals="pair". Same ids and files as
   // design/stub/signatures.js in that mode. Folder-42 stays on the lab page.
@@ -227,9 +236,18 @@
       return [];
     });
   }
+  function loadRemoved() {
+    return fetch(DENY_URL, { cache: 'no-store' }).then(readCatalog).then(function (list) {
+      if (!Array.isArray(list)) return;
+      list.forEach(function (id) {
+        if (typeof id === 'string' && id) REMOVED_IDS[id] = 1;
+      });
+    }).catch(function () {});
+  }
   function loadPresets() {
+    var hidden = hiddenSet();
     var listed = PRESETS.filter(function (item) {
-      if (REMOVED_IDS[item.id]) return false;
+      if (REMOVED_IDS[item.id] || hidden[item.id]) return false;
       if (isStockFile(item.src)) return true;
       return listedSeal(item);
     });
@@ -242,7 +260,9 @@
   function load() {
     var gen = ++loadGen;
     say('Загрузка');
-    return Promise.all([loadUsers(), loadPresets()]).then(function (parts) {
+    return loadRemoved().then(function () {
+      return Promise.all([loadUsers(), loadPresets()]);
+    }).then(function (parts) {
       if (gen !== loadGen) return;
       var users = parts[0];
       var presets = parts[1];
@@ -276,16 +296,14 @@
       img.alt = '';
       img.src = item.src;
       var meta = document.createElement('p');
-      meta.className = 'meta';
+      meta.className = 'meta meta-label';
       meta.textContent = (item.preset ? 'Заранее' : 'Своя') + ' · ' + (item.preset ? shortSrc(item.src) : (item.text || item.id));
-      card.append(img, meta);
-      if (!item.preset) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = 'Удалить';
-        button.addEventListener('click', function () { remove(item); });
-        card.appendChild(button);
-      }
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'meta meta-delete';
+      button.textContent = 'Удалить';
+      button.addEventListener('click', function () { remove(item); });
+      card.append(img, meta, button);
       grid.appendChild(card);
     });
   }
@@ -293,14 +311,18 @@
     writeLocal(readLocal().filter(function (item) { return !item || item.id !== id; }));
   }
   function finishRemove(item) {
+    REMOVED_IDS[item.id] = 1;
     hideId(item.id);
     forgetLocal(item.id);
     items = items.filter(function (row) { return row.id !== item.id; });
     render();
   }
+  function isPhone() {
+    return window.matchMedia('(max-width: 440px)').matches;
+  }
   function remove(item) {
-    if (!item || item.preset) return;
-    if (!window.confirm('Удалить эту печать?')) return;
+    if (!item) return;
+    if (!isPhone() && !window.confirm('Удалить эту печать?')) return;
     fetch(API + '?id=' + encodeURIComponent(item.id), { method: 'DELETE' }).then(function (res) {
       if (res.ok || item.localOnly || res.status === 404) {
         finishRemove(item);
