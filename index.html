@@ -947,6 +947,17 @@
     flex: none;
     transform: translateX(-50%);
   }
+  /* Phone width, not the 375×812 frame. A short screen used to freeze the
+     seal; the circle and the apple share this box and grow with the width. */
+  @media (max-width: 440px) {
+    .sig-seal {
+      width: calc(326 * 100vw / 375);
+      height: calc(326 * 100vw / 375);
+    }
+    .sig-swatches {
+      top: calc(50% + 163 * 100vw / 375 + 48px);
+    }
+  }
   .sig-swatches button {
     width: 32px;
     height: 32px;
@@ -1355,7 +1366,7 @@
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261104-classic"></script>
+<script src="design/stub/signatures.js?v=20261104-catalog"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",

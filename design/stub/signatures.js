@@ -12,7 +12,15 @@
   }
   var KEY = 'vanok_signatures_v2';
   var POOL_KEY = 'vanok_signature_pool_v2';
-  var API = '/api/signatures';
+  // serve.py answers /api/signatures locally; GitHub Pages is static, so the
+  // live site shares one catalog through the Cloudflare worker in worker/.
+  var LOCAL_HOST = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  var SHARED_API = 'https://vanok-signatures.fovkotov.workers.dev/signatures';
+  var API = LOCAL_HOST ? '/api/signatures' : SHARED_API;
+  if (LOCAL_HOST) {
+    var apiOverride = new URLSearchParams(location.search).get('sigapi');
+    if (apiOverride) API = apiOverride;
+  }
   var FILE_URL = 'design/stamps/custom-signatures.json';
   var PRESETS = [
     { id: 'preset-folder42-blue', kind: 'stamp', preset: true, text: 'Vanök Regular', src: 'design/stamps/folder-42/blue.png', colorName: 'blue', castHex: 0x0c6df4 },
@@ -135,6 +143,20 @@
   var photoPointers = [];
   var pinch = null;
 
+  // Seals made before the shared catalog live in vanok_signatures_v1.
+  // Read them first; drop the old key only after they are copied into v2.
+  function readLegacy() {
+    try {
+      var raw = localStorage.getItem('vanok_signatures_v1');
+      var parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(function (item) {
+        return item && (item.kind === 'stamp' || item.kind === 'apple') && typeof item.src === 'string' && item.id;
+      });
+    } catch (err) {
+      return [];
+    }
+  }
   function forgetLegacy() {
     try {
       localStorage.removeItem('vanok_signatures_v1');
@@ -156,7 +178,12 @@
     return item && (item.kind === 'stamp' || item.kind === 'apple') && typeof item.src === 'string' && item.id && !REMOVED_IDS[item.id];
   }
   function saveLocal() {
-    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (err) {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(items));
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
   function userItems() {
     return items.filter(function (item) { return !item.preset; });
@@ -771,16 +798,17 @@
   }
 
   // The apple letters sit on the inner contour and spill onto the stroke.
-  // Pull that arc inward by two lines of the current type, so the text follows
-  // the smaller shape and clears the outline.
+  // Pull that arc inward by one line of the current type, so the text
+  // follows the outline one line away from the edge.
   var appleTextPath = '';
   var appleInset = 0;
   var appleHitLoop = null;
   function appleTextInset() {
     var svg = document.querySelector('.sig-slide[data-kind="apple"] svg');
-    var width = svg && svg.clientWidth;
-    if (!width) return 0;
-    return 2 * 13 * VB.apple.w / width;
+    if (!svg || !svg.clientWidth) return 0;
+    // One line at the 326-wide seal, in viewBox units. A live pixel inset
+    // would stay put while the shape grows with the screen.
+    return 13 * VB.apple.w / 326;
   }
   function refitAppleText() {
     var path = document.getElementById('sig-path-apple');
@@ -1357,7 +1385,8 @@
       closeModal();
       return;
     }
-    if (editor.classList.contains('is-on') || shapes.classList.contains('is-on')) openLibrary();
+    if (editor.classList.contains('is-on')) openShapes();
+    else if (shapes.classList.contains('is-on')) openLibrary();
     else closeModal();
   });
   document.addEventListener('keydown', function (event) {
@@ -1653,16 +1682,47 @@
     });
   });
 
+  function isDataSrc(src) {
+    return String(src || '').indexOf('data:image/') === 0;
+  }
+  function isRemoteSrc(src) {
+    return /^https?:\/\//.test(String(src || ''));
+  }
+  // The shared catalog only takes inline images. Seals saved by serve.py point
+  // at design/stamps/custom-signatures/*.webp, so inline those first.
+  function uploadSrc(item) {
+    if (isDataSrc(item.src)) return ensureWebpSrc(item);
+    if (isRemoteSrc(item.src)) return Promise.resolve(item);
+    return rasterToWebp(item.src).then(function (next) {
+      if (isDataSrc(next)) item.src = next;
+      return item;
+    });
+  }
+  function forgetItem(id) {
+    REMOVED_IDS[id] = 1;
+    delete held[id];
+    items = items.filter(function (row) { return row.id !== id; });
+    saveLocal();
+    renderGrid();
+  }
+  var posting = {};
   function postItem(item) {
-    ensureWebpSrc(item).then(function () {
+    if (posting[item.id]) return posting[item.id];
+    var job = uploadSrc(item).then(function () {
       saveLocal();
+      if (!isDataSrc(item.src)) return null;
       return fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)
       });
     }).then(function (res) {
-      if (!res || !res.ok) return null;
+      if (!res) return null;
+      if (res.status === 410) {
+        forgetItem(item.id);
+        return null;
+      }
+      if (!res.ok) return null;
       return res.json();
     }).then(function (saved) {
       if (!saved || saved.id !== item.id) return;
@@ -1670,58 +1730,93 @@
       if (typeof saved.src === 'string' && saved.src !== item.src) item.src = saved.src;
       saveLocal();
       renderGrid();
-    }).catch(function () {});
+    }).catch(function () {}).then(function () {
+      delete posting[item.id];
+    });
+    posting[item.id] = job;
+    return job;
   }
   var held = {};
-  function applyShared(remote) {
+  // remote: the shared list when it answered, otherwise only the static file.
+  // Anything this device has that the shared list lacks (and was not deleted)
+  // was never uploaded, so it goes up now and every device gets the union.
+  function applyShared(remote, shared) {
     var next = [];
     var seen = {};
+    var upload = [];
     remote.forEach(function (item) {
       if (!validItem(item) || seen[item.id]) return;
       seen[item.id] = 1;
       next.push(item);
     });
-    items.forEach(function (item) {
-      if (!item || !item.localOnly || seen[item.id] || !validItem(item)) return;
+    items.concat(Object.keys(held).map(function (id) { return held[id]; })).forEach(function (item) {
+      if (!item || item.preset || seen[item.id] || !validItem(item)) return;
+      if (shared && isRemoteSrc(item.src) && !held[item.id]) return;
       seen[item.id] = 1;
       next.push(item);
-    });
-    Object.keys(held).forEach(function (id) {
-      if (seen[id] || !validItem(held[id])) return;
-      seen[id] = 1;
-      next.push(held[id]);
+      if (shared && !isRemoteSrc(item.src)) {
+        item.localOnly = true;
+        upload.push(item);
+      }
     });
     next.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
     items = next;
     saveLocal();
     renderGrid();
+    upload.reduce(function (chain, item) {
+      return chain.then(function () { return postItem(item); });
+    }, Promise.resolve());
   }
   function readCatalog(res) {
     var type = (res.headers.get('content-type') || '').toLowerCase();
     if (!res.ok || type.indexOf('json') === -1) throw new Error('catalog');
     return res.json();
   }
+  function markRemoved(list) {
+    if (!Array.isArray(list)) return;
+    list.forEach(function (id) {
+      if (typeof id === 'string' && id) REMOVED_IDS[id] = 1;
+    });
+  }
   function loadRemoved() {
-    return fetch('design/stamps/removed-seals.json', { cache: 'no-store' }).then(readCatalog).then(function (list) {
-      if (!Array.isArray(list)) return;
-      list.forEach(function (id) {
-        if (typeof id === 'string' && id) REMOVED_IDS[id] = 1;
-      });
-    }).catch(function () {});
+    return fetch('design/stamps/removed-seals.json', { cache: 'no-store' }).then(readCatalog).then(markRemoved).catch(function () {});
   }
+  var loading = null;
   function loadShared() {
-    fetch(API, { cache: 'no-store' }).then(readCatalog).catch(function () {
-      return fetch(FILE_URL, { cache: 'no-store' }).then(readCatalog);
-    }).then(function (remote) {
-      if (!Array.isArray(remote)) return;
-      applyShared(remote);
-    }).catch(function () {});
+    if (loading) return loading;
+    var shared = fetch(API, { cache: 'no-store' }).then(readCatalog).then(function (data) {
+      var list = Array.isArray(data) ? data : data && data.items;
+      if (!Array.isArray(list)) throw new Error('catalog');
+      if (data && data.removed) markRemoved(data.removed);
+      return list;
+    }).catch(function () { return null; });
+    var fixed = fetch(FILE_URL, { cache: 'no-store' }).then(readCatalog).catch(function () { return []; });
+    loading = Promise.all([shared, fixed]).then(function (parts) {
+      var file = Array.isArray(parts[1]) ? parts[1] : [];
+      if (parts[0]) applyShared(parts[0].concat(file), true);
+      else applyShared(file, false);
+    }).catch(function () {}).then(function () {
+      loading = null;
+    });
+    return loading;
   }
-  forgetLegacy();
+  var legacy = readLegacy();
   loadRemoved().then(function () {
     items = loadLocal();
+    var seen = {};
+    items.forEach(function (item) { if (item && item.id) seen[item.id] = 1; });
+    legacy.forEach(function (item) {
+      if (seen[item.id] || !validItem(item)) return;
+      item.localOnly = true;
+      seen[item.id] = 1;
+      items.push(item);
+    });
+    if (saveLocal()) forgetLegacy();
     loadAdopted();
     renderGrid();
     loadShared();
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') loadShared();
   });
 })();

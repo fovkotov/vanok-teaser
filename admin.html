@@ -60,7 +60,13 @@
 <div class="grid" id="grid"></div>
 <script>
 (function () {
-  var API = '/api/signatures';
+  // Same switch as design/stub/signatures.js: serve.py locally, the shared
+  // Cloudflare worker on GitHub Pages.
+  var LOCAL_HOST = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  var API = LOCAL_HOST ? '/api/signatures' : 'https://vanok-signatures.fovkotov.workers.dev/signatures';
+  if (LOCAL_HOST && new URLSearchParams(location.search).get('sigapi')) {
+    API = new URLSearchParams(location.search).get('sigapi');
+  }
   var FILE_URL = 'design/stamps/custom-signatures.json';
   var DENY_URL = 'design/stamps/removed-seals.json';
   var KEY = 'vanok_signatures_v2';
@@ -196,8 +202,40 @@
     }
   }
   function writeLocal(next) {
-    try { localStorage.setItem(KEY, JSON.stringify(next)); }
-    catch (err) {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next));
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+  function readLegacy() {
+    try {
+      var parsed = JSON.parse(localStorage.getItem('vanok_signatures_v1') || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  }
+  function forgetLegacy() {
+    try {
+      localStorage.removeItem('vanok_signatures_v1');
+      localStorage.removeItem('vanok_signatures_v1_cleared');
+      localStorage.removeItem('vanok_signature_pool_v1');
+    } catch (err) {}
+  }
+  function absorbLegacy() {
+    var legacy = readLegacy();
+    var current = readLocal();
+    var seen = {};
+    current.forEach(function (item) { if (item && item.id) seen[item.id] = 1; });
+    legacy.forEach(function (item) {
+      if (!usable(item) || seen[item.id]) return;
+      item.localOnly = true;
+      seen[item.id] = 1;
+      current.push(item);
+    });
+    if (writeLocal(current) || !legacy.length) forgetLegacy();
   }
   function usable(item) {
     return item && item.id && !item.preset && !REMOVED_IDS[item.id] && listedSeal(item) && (item.kind === 'stamp' || item.kind === 'apple') && typeof item.src === 'string';
@@ -208,32 +246,43 @@
     return res.json();
   }
   function fileExists(src) {
-    if (!src || src.indexOf('data:') === 0 || src.indexOf('blob:') === 0) return Promise.resolve(true);
+    if (!src || src.indexOf('data:') === 0 || src.indexOf('blob:') === 0 || /^https?:\/\//.test(src)) return Promise.resolve(true);
     return fetch(src, { method: 'HEAD', cache: 'no-store' }).then(function (res) {
       return res.ok;
     }, function () { return false; });
   }
+  function markRemoved(list) {
+    if (!Array.isArray(list)) return;
+    list.forEach(function (id) {
+      if (typeof id === 'string' && id) REMOVED_IDS[id] = 1;
+    });
+  }
   function loadUsers() {
-    return fetch(FILE_URL, { cache: 'no-store' }).then(readCatalog).then(function (remote) {
-      catalogNote = '';
+    var shared = fetch(API, { cache: 'no-store' }).then(readCatalog).then(function (data) {
+      var list = Array.isArray(data) ? data : data && data.items;
+      if (!Array.isArray(list)) throw new Error('catalog');
+      if (data && data.removed) markRemoved(data.removed);
+      return list;
+    }).catch(function () { return null; });
+    var fixed = fetch(FILE_URL, { cache: 'no-store' }).then(readCatalog).catch(function () { return []; });
+    return Promise.all([shared, fixed]).then(function (parts) {
+      catalogNote = parts[0] ? '' : 'Общий каталог не открылся';
       var seen = {};
       var hidden = hiddenSet();
       var next = [];
-      (Array.isArray(remote) ? remote : []).forEach(function (item) {
+      (parts[0] || []).concat(Array.isArray(parts[1]) ? parts[1] : []).forEach(function (item) {
         if (!usable(item) || seen[item.id] || hidden[item.id]) return;
         seen[item.id] = 1;
         next.push(item);
       });
       readLocal().forEach(function (item) {
-        if (!usable(item) || !item.localOnly || seen[item.id] || hidden[item.id]) return;
+        if (!usable(item) || seen[item.id] || hidden[item.id]) return;
         seen[item.id] = 1;
+        item.localOnly = true;
         next.push(item);
       });
       next.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
       return next;
-    }).catch(function () {
-      catalogNote = 'Каталог своих печатей не открылся';
-      return [];
     });
   }
   function loadRemoved() {
@@ -257,10 +306,36 @@
       return rows.filter(Boolean);
     });
   }
+  function pushLocal(item) {
+    var src = item && item.src;
+    if (!src || src.indexOf('data:image/') !== 0) return;
+    fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item)
+    }).then(function (res) {
+      if (res.status === 410) {
+        finishRemove(item);
+        return null;
+      }
+      if (!res.ok) return null;
+      return res.json();
+    }).then(function (saved) {
+      if (!saved || saved.id !== item.id) return;
+      writeLocal(readLocal().map(function (row) {
+        if (!row || row.id !== item.id) return row;
+        var copy = Object.assign({}, row);
+        copy.localOnly = false;
+        if (typeof saved.src === 'string') copy.src = saved.src;
+        return copy;
+      }));
+    }).catch(function () {});
+  }
   function load() {
     var gen = ++loadGen;
     say('Загрузка');
     return loadRemoved().then(function () {
+      absorbLegacy();
       return Promise.all([loadUsers(), loadPresets()]);
     }).then(function (parts) {
       if (gen !== loadGen) return;
@@ -272,6 +347,9 @@
         if (gen !== loadGen) return;
         items = rows.filter(Boolean).concat(presets);
         render();
+        items.forEach(function (item) {
+          if (item && item.localOnly) pushLocal(item);
+        });
       });
     });
   }
@@ -324,13 +402,13 @@
     if (!item) return;
     if (!isPhone() && !window.confirm('Удалить эту печать?')) return;
     fetch(API + '?id=' + encodeURIComponent(item.id), { method: 'DELETE' }).then(function (res) {
-      if (res.ok || item.localOnly || res.status === 404) {
+      if (res.ok) {
         finishRemove(item);
         return;
       }
       say('Не удалось удалить с сайта');
     }).catch(function () {
-      finishRemove(item);
+      say('Не удалось удалить с сайта — нет связи с каталогом');
     });
   }
   load();

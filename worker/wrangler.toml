@@ -1,7 +1,18 @@
 name = "vanok-signatures"
 main = "signatures-worker.js"
-compatibility_date = "2026-10-21"
+compatibility_date = "2026-11-04"
+workers_dev = true
 
-[[kv_namespaces]]
-binding = "SIGNATURES"
-id = "replace-with-kv-namespace-id"
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
+
+[[durable_objects.bindings]]
+name = "SEALS"
+class_name = "SealCatalog"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SealCatalog"]

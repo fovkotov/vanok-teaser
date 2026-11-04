@@ -2,16 +2,11 @@
 """Local preview. HTML stays uncached so the browser cannot keep an old page.
 Static files send a day of cache.
 
-GET/POST /api/signatures stores the shared custom-seal catalog in
-design/stamps/custom-signatures.json. Raster payloads are written as WebP
-files in design/stamps/custom-signatures/ and the JSON keeps the same ids
-with those paths. The public site reads the same JSON file, so phone and
-desktop share one catalog instead of each browser's old local list.
-DELETE /api/signatures drops a custom seal from that catalog and appends
-the id to design/stamps/removed-seals.json. Preset ids are only recorded
-in that denylist; their image files stay on disk. Admin and the classic
-page both read the denylist.
-worker/signatures-worker.js is the same API for a shared deploy.
+GET/POST/DELETE /api/signatures is the local catalog. Raster payloads are
+written as WebP under design/stamps/custom-signatures/. DELETE remembers
+the id in design/stamps/removed-seals.json and in the GET body, including
+preset ids. GitHub Pages is static, so the public site uses
+worker/signatures-worker.js for the same routes.
 """
 import base64
 import io
@@ -212,7 +207,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.split("?", 1)[0] != "/api/signatures":
             return super().do_GET()
-        body = json.dumps(read_store()).encode()
+        body = json.dumps({"items": read_store(), "removed": read_removed()}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -238,6 +233,14 @@ class Handler(SimpleHTTPRequestHandler):
         item = clean_item(payload)
         if not item or not item["id"]:
             self.send_error(400)
+            return
+        if item["id"] in read_removed():
+            body = json.dumps({"id": item["id"], "removed": True}).encode()
+            self.send_response(410)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
         stored = materialize_src(item["id"], item["src"])
         if stored:
