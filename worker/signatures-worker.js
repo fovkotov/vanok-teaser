@@ -38,7 +38,7 @@ export default {
       return new Response(null, {
         headers: {
           "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET, POST, OPTIONS",
+          "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
           "access-control-allow-headers": "content-type",
         },
       });
@@ -48,6 +48,12 @@ export default {
     }
     const current = (await env.SIGNATURES.get("list", "json")) || [];
     if (request.method === "GET") return json(current);
+    if (request.method === "DELETE") {
+      const id = url.searchParams.get("id") || "";
+      const next = current.filter((row) => String(row && row.id) !== id);
+      await env.SIGNATURES.put("list", JSON.stringify(next));
+      return json({ id, removed: true });
+    }
     if (request.method !== "POST") return json({ error: "method" }, 405);
     let payload;
     try {
