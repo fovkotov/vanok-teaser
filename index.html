@@ -3,6 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-TT59ZTQL');</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-464M92WLLN"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-464M92WLLN');
+</script>
 <title>Vanök Regular・Website soon</title>
 <meta name="description" content="Graphic designer and art director based in Belgrade, Serbia">
 <meta property="og:type" content="video.other">
@@ -1261,6 +1273,8 @@
 </style>
 </head>
 <body>
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TT59ZTQL"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <section class="frame desk" aria-label="Desktop">
     <img class="wordmark" src="design/stub/wordmark.svg" alt="" draggable="false" fetchpriority="high">
     <img class="lettering lettering-1" src="design/stub/wordmark-8a7e59.svg" alt="" draggable="false">
@@ -1335,6 +1349,15 @@
     var buttons = document.querySelectorAll('.crosshair');
     for (var n = 0; n < buttons.length; n++) buttons[n].addEventListener('click', cycle);
 
+    var igLinks = document.querySelectorAll('a.ig-link[href="https://www.instagram.com/vanok.regular/"]');
+    for (var ig = 0; ig < igLinks.length; ig++) {
+      igLinks[ig].addEventListener('click', function () {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ event: 'instagram_click' });
+        if (typeof window.gtag === 'function') window.gtag('event', 'instagram_click');
+      });
+    }
+
     document.addEventListener('keydown', function (event) {
       if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
       var el = event.target;
@@ -1383,7 +1406,7 @@
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261104-catalog"></script>
+<script src="design/stub/signatures.js?v=20261107-analytics"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",

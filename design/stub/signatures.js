@@ -1675,12 +1675,19 @@
       setTimeout(function () {
         held[item.id] = item;
         saveLocal();
-        postItem(item);
+        postItem(item, true);
       }, 0);
     }, function () {
       creatingSeal = false;
     });
   });
+  function trackCustomStampCreate(item) {
+    if (!item || item.preset) return;
+    if (document.documentElement.getAttribute('data-seals') !== 'pair') return;
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: 'custom_stamp_create' });
+    if (typeof window.gtag === 'function') window.gtag('event', 'custom_stamp_create');
+  }
 
   function isDataSrc(src) {
     return String(src || '').indexOf('data:image/') === 0;
@@ -1706,7 +1713,7 @@
     renderGrid();
   }
   var posting = {};
-  function postItem(item) {
+  function postItem(item, reportCreate) {
     if (posting[item.id]) return posting[item.id];
     var job = uploadSrc(item).then(function () {
       saveLocal();
@@ -1730,6 +1737,7 @@
       if (typeof saved.src === 'string' && saved.src !== item.src) item.src = saved.src;
       saveLocal();
       renderGrid();
+      if (reportCreate) trackCustomStampCreate(item);
     }).catch(function () {}).then(function () {
       delete posting[item.id];
     });
