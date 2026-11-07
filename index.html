@@ -88,6 +88,34 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     -webkit-user-select: text;
     user-select: text;
   }
+  /* Absolute text and images do not reliably inherit user-select from body in Safari. */
+  .frame,
+  .frame *,
+  #sign-host,
+  #sign-host *,
+  .apple-view,
+  .apple-view *,
+  .sign-imprint,
+  .sign-imprint * {
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  img, canvas {
+    -webkit-user-drag: none;
+  }
+  /* Applied on the pointerdown/mousedown that starts a stamp press, before the first move. */
+  html.stamp-press *:not(input):not(textarea):not([contenteditable="true"]) {
+    -webkit-user-select: none !important;
+    -webkit-user-drag: none !important;
+    -webkit-touch-callout: none !important;
+    user-select: none !important;
+  }
+  html.stamp-press *:not(input):not(textarea):not([contenteditable="true"])::selection {
+    background: transparent;
+    color: inherit;
+  }
   html {
     height: 100svh;
     height: 100dvh;
@@ -3801,8 +3829,7 @@ function mountSignStamp(host) {
     trail.y = trail.lastY = p.y;
     trail.lastAt = performance.now();
     trail.placed = 0;
-    if (e.cancelable) e.preventDefault();
-    clearPageSelection();
+    armStampPress(e);
   }
 
   function onTrailMove(e) {
@@ -3848,6 +3875,7 @@ function mountSignStamp(host) {
     const lastY = trail.lastY;
     const lastAt = trail.lastAt;
     if (mine) trail.on = false;
+    if (mine || document.documentElement.classList.contains('stamp-press')) endStampPress();
     if (introGesture || !(performance.now() >= (window.__vanokStampsAt || Infinity))) {
       introGesture = true;
       return;
@@ -3880,15 +3908,67 @@ function mountSignStamp(host) {
 
   function clearPageSelection() {
     const sel = window.getSelection && window.getSelection();
-    if (!sel || !sel.rangeCount || sel.isCollapsed) return;
-    if (stampEditTarget(sel.anchorNode)) return;
+    if (!sel || !sel.rangeCount) return;
+    if (stampEditTarget(sel.anchorNode) || stampEditTarget(document.activeElement)) return;
     sel.removeAllRanges();
   }
 
-  function onStampNativeDrag(e) {
-    if (!trail.on) return;
+  function lockPageImages() {
+    const nodes = document.querySelectorAll('img, canvas');
+    for (let i = 0; i < nodes.length; i++) nodes[i].draggable = false;
+  }
+
+  function armStampPress(e) {
+    document.documentElement.classList.add('stamp-press');
+    lockPageImages();
+    if (e && e.cancelable) e.preventDefault();
+    clearPageSelection();
+  }
+
+  function endStampPress() {
+    document.documentElement.classList.remove('stamp-press');
+    clearPageSelection();
+  }
+
+  // Safari does not fire selectstart, and cancelling pointerdown does not
+  // stop the compatibility mousedown/mousemove that paints the highlight.
+  function onStampMouseDown(e) {
+    if (!alive || (e.button != null && e.button !== 0)) return;
+    if (stampEditTarget(e.target) || stampBlocked(e)) return;
+    const p = eventPoint(e);
+    if (!appleUnder(e) && pointBlocked(p.x, p.y, e)) return;
+    armStampPress(e);
+  }
+
+  function onStampMouseMove(e) {
+    if (!trail.on && !document.documentElement.classList.contains('stamp-press')) return;
+    if ((e.buttons & 1) === 0) return;
     if (stampEditTarget(e.target)) return;
+    if (e.cancelable) e.preventDefault();
+    clearPageSelection();
+  }
+
+  function onStampMouseUp(e) {
+    if (stampEditTarget(e.target) || stampEditTarget(document.activeElement)) {
+      document.documentElement.classList.remove('stamp-press');
+      return;
+    }
+    endStampPress();
+  }
+
+  function onStampSelectionChange() {
+    clearPageSelection();
+  }
+
+  function onStampNativeDrag(e) {
+    if (stampEditTarget(e.target)) return;
+    if (e.type === 'dragstart') {
+      const el = e.target;
+      const image = el && el.closest && el.closest('img, canvas, svg, .sign-imprint, .apple-view, .wordmark, .lettering, .vanok, .regular');
+      if (!image && !trail.on && !document.documentElement.classList.contains('stamp-press')) return;
+    }
     e.preventDefault();
+    clearPageSelection();
   }
 
   if (window.PointerEvent) {
@@ -3903,8 +3983,13 @@ function mountSignStamp(host) {
     addEventListener('touchcancel', onPointerUp, true);
   }
   addEventListener('click', onClick, true);
+  addEventListener('mousedown', onStampMouseDown, { capture: true, passive: false });
+  addEventListener('mousemove', onStampMouseMove, { capture: true, passive: false });
+  addEventListener('mouseup', onStampMouseUp, true);
+  document.addEventListener('selectionchange', onStampSelectionChange);
   addEventListener('selectstart', onStampNativeDrag, true);
   addEventListener('dragstart', onStampNativeDrag, true);
+  lockPageImages();
 
   function isTyping(el) {
     while (el && el !== document.body) {
@@ -4331,6 +4416,13 @@ function mountSignStamp(host) {
       removeEventListener('touchcancel', onPointerUp, true);
     }
     removeEventListener('click', onClick, true);
+    removeEventListener('mousedown', onStampMouseDown, true);
+    removeEventListener('mousemove', onStampMouseMove, true);
+    removeEventListener('mouseup', onStampMouseUp, true);
+    document.removeEventListener('selectionchange', onStampSelectionChange);
+    removeEventListener('selectstart', onStampNativeDrag, true);
+    removeEventListener('dragstart', onStampNativeDrag, true);
+    document.documentElement.classList.remove('stamp-press');
     removeEventListener('keydown', onKey);
     renderer.setAnimationLoop(null);
     if (window.__vanokPlaceSeal === placeSeal) delete window.__vanokPlaceSeal;
@@ -4544,6 +4636,7 @@ function mountViewportApple() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.domElement.style.pointerEvents = 'none';
+  renderer.domElement.draggable = false;
   host.appendChild(renderer.domElement);
   document.body.appendChild(host);
 
