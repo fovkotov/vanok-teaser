@@ -4822,6 +4822,9 @@ function mountViewportApple() {
   // on the resting pose, sooner than APPLE_ROLL_MS by half the off-screen
   // time. Radii are unchanged. Spin stays tied to arc length, so the faster
   // off-screen arc also spins at 2× and no extra turn is added.
+  // easeSlow is flat at the finish, so the apple is already on the resting
+  // pose while the clock still has about two seconds left. The click lock
+  // ends on that pose. A click during the roll is ignored and is not queued.
   const APPLE_ROLL_MS = 11000;
   const APPLE_ROLL_STEPS = 480;
   const rollQuat = new THREE.Quaternion();
@@ -4835,8 +4838,22 @@ function mountViewportApple() {
     }
     return { radius: h * 0.21, theta0: -160 * Math.PI / 180, dir: -1 };
   }
+  // Home again: center within 1px and tumble within 2°. u <= 0.5 is the
+  // departure, so the lock stays up until the apple has come back.
+  function appleRollArrived(spec, u) {
+    if (u >= 1) return true;
+    if (!(u > 0.5)) return false;
+    const chord = 2 * spec.radius * Math.abs(Math.sin(Math.PI * u));
+    if (chord > 1) return false;
+    const turns = Math.max(1, Math.round(spec.radius / appleScreenRadius()));
+    return 360 * turns * (1 - u) <= 2;
+  }
   function appleRolling() {
-    return !!(appleRoll && (performance.now() - appleRoll.start) < appleRoll.clock.duration);
+    if (!appleRoll) return false;
+    const elapsed = performance.now() - appleRoll.start;
+    if (elapsed >= appleRoll.clock.duration) return false;
+    const u = appleRollParam(appleRoll.clock, elapsed);
+    return !appleRollArrived(appleRoll.spec, u);
   }
   function appleScreenRadius() {
     const w = Math.max(innerWidth, 2);
@@ -4936,7 +4953,7 @@ function mountViewportApple() {
   function appleRollSample() {
     if (!appleRoll) return null;
     const u = appleRollParam(appleRoll.clock, performance.now() - appleRoll.start);
-    if (!(u > 0) || u >= 1) return null;
+    if (!(u > 0) || appleRollArrived(appleRoll.spec, u)) return null;
     const spec = appleRoll.spec;
     const theta = spec.theta0 + spec.dir * Math.PI * 2 * u;
     const c0 = Math.cos(spec.theta0);
@@ -6073,6 +6090,7 @@ function mountViewportApple() {
     removeEventListener('pointercancel', onApplePointerUp);
     if (globalThis.__vanokAppleGesture) delete globalThis.__vanokAppleGesture;
     if (globalThis.__vanokHitsApple) delete globalThis.__vanokHitsApple;
+    if (globalThis.__vanokAppleRolling) delete globalThis.__vanokAppleRolling;
     document.documentElement.removeEventListener('vanok-models', syncViewportApple);
     renderer.setAnimationLoop(null);
     pmrem.dispose();
