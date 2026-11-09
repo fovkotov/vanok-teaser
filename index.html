@@ -1328,6 +1328,28 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .layout-grid span:nth-child(n + 5) { display: none; }
   }
 </style>
+<script>
+if (new URLSearchParams(location.search).get('embed') === 'stamps') {
+  document.documentElement.classList.add('stamps-embed');
+  addEventListener('wheel', e => {
+    e.preventDefault();
+    parent.postMessage({type:'vanok-scroll', delta:e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1)}, location.origin);
+  }, {passive:false});
+  addEventListener('keydown', e => {
+    if (e.code !== 'KeyG' && e.code !== 'Escape') return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    parent.postMessage({type:'vanok-settings', code:e.code, key:e.key}, location.origin);
+  }, true);
+}
+</script>
+<style>
+html.stamps-embed .frame > :not(.sign),
+html.stamps-embed .apple-view,
+html.stamps-embed .apple-light,
+html.stamps-embed .stamp-panel { display: none !important; }
+html.stamps-embed .frame .sign { left: 50%; top: 50%; width: min(304px, 65vw); transform: translate(-50%, -50%); }
+html.stamps-embed .frame .sign p { top: 10px; font-size: 16px; }
+</style>
 </head>
 <body>
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TT59ZTQL"
@@ -6537,7 +6559,11 @@ document.documentElement.addEventListener('vanok-theme', syncIceTheme);
 window.__vanokIce = iceMaterialReport;
 queuePlanePrints();
 mountSignStamp(document.getElementById('sign-host'));
-mountViewportApple();
+if (!document.documentElement.classList.contains('stamps-embed')) mountViewportApple();
+else {
+  document.documentElement.classList.add('page-ready', 'apple-home');
+  window.__vanokStampsAt = performance.now();
+}
 </script>
 </body>
 </html>
