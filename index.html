@@ -791,6 +791,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   html:not(.page-ready) .ig-link,
   html:not(.page-ready) .site-credits { pointer-events: none; }
 
+  /* The apple owns the stage until its entrance finishes, on every screen. */
+  html.page-ready .apple-view.apple-shown { transition: none; }
+  html:not(.apple-home) .frame,
+  html:not(.apple-home) .draw-sig-btn,
+  html:not(.apple-home) #sign-host {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  html:not(.apple-home) .sign-line,
+  html:not(.apple-home) .sign p { animation-play-state: paused; }
+  html.page-ready:not(.apple-home) :is(.vanok, .regular, .wordmark, .lettering, .bio, .soon, .crosshair, .draw-sig-btn, .catalog-entry, .ig-link, .site-credits, #sign-host) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .draw-sig-btn {
     position: fixed;
     z-index: 9;
@@ -1379,7 +1394,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     setTimeout(function () {
       if (root.classList.contains('page-ready')) return;
       root.classList.add('page-ready');
-      window.__vanokStampsAt = performance.now() + 500;
+      window.__vanokStampsAt = Infinity;
     }, 8000);
     function cycle(event) {
       event.preventDefault();
@@ -2380,7 +2395,7 @@ function revealTeaser() {
   const root = document.documentElement;
   if (root.classList.contains('page-ready')) return;
   root.classList.add('page-ready');
-  window.__vanokStampsAt = performance.now() + INTRO_FADE_MS;
+  window.__vanokStampsAt = Infinity;
 }
 
 const introImages = [
@@ -4737,9 +4752,9 @@ function mountViewportApple() {
   function mobileFrameScale() {
     return Math.max(innerWidth, 1) / MOBILE_BOARD;
   }
-  // The apple starts above the screen, turned on Y and Z, and eases into
-  // its resting pose once the page is revealed. Same flight on mobile and
-  // desktop. prefers-reduced-motion skips the slide and the spin.
+  // On every screen the apple rolls up from below the bottom edge.
+  // The rest of the page appears only after it lands.
+  // prefers-reduced-motion skips the slide and the spin on both.
   // Прилёт edits this entrance only. Defaults stay on today's start:
   // x aligned with the resting pose, top = resting top − 1.35× height,
   // spin Y + APPLE_ENTER_Y and Z + APPLE_ENTER_Z, Slow bezier, APPLE_ENTER_MS.
@@ -4748,7 +4763,9 @@ function mountViewportApple() {
   // documented easeOutExpo points: https://easings.net/#easeOutExpo
   // Solver: packages/motion-utils/src/easing/cubic-bezier.ts
   let appleEnter = null;
+  let appleIntro = null;
   const APPLE_ENTER_MS = 900;
+  const MOBILE_INTRO_MS = 2400;
   const APPLE_ENTER_Y = 300;
   const APPLE_ENTER_Z = 184;
   const APPLE_EASE_SLOW = [0.16, 1, 0.3, 1];
@@ -4802,15 +4819,26 @@ function mountViewportApple() {
   }
   function appleEnterXOffset() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+    if (appleIntro) {
+      const pose = appleIntroPose();
+      return pose ? pose.dx : 0;
+    }
     if (!appleEnter) return fly.xOff;
     return appleEnter.fromX * (1 - appleEnterEase());
   }
   function appleEnterOffset() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+    if (appleIntro) {
+      const pose = appleIntroPose();
+      return pose ? pose.dy : 0;
+    }
     if (!appleEnter) return flyTopOff();
     return appleEnter.fromY * (1 - appleEnterEase());
   }
   function appleEnterRot() {
+    if (appleIntro) {
+      return { x: VIEW_APPLE.rotX, y: VIEW_APPLE.rotY, z: VIEW_APPLE.rotZ };
+    }
     const left = 1 - appleEnterEase();
     const src = appleEnter || fly;
     return {
@@ -4844,6 +4872,8 @@ function mountViewportApple() {
   const APPLE_DIP_PRESS = 18;
   const rollQuat = new THREE.Quaternion();
   const rollAxis = new THREE.Vector3();
+  const introOrient = new THREE.Quaternion();
+  const introIdentity = new THREE.Quaternion();
   let appleRoll = null;
   let appleHovering = false;
   let applePressing = false;
@@ -5058,6 +5088,7 @@ function mountViewportApple() {
   }
   function startAppleRoll() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (appleIntro) return;
     if (appleRollAway()) return;
     const spec = appleRollSpec();
     appleRoll = { start: performance.now(), spec, clock: appleRollClock(spec) };
@@ -5077,9 +5108,164 @@ function mountViewportApple() {
       start: performance.now(),
     };
   }
+  function mobileIntroProgress() {
+    if (!appleIntro) return 1;
+    const u = (performance.now() - appleIntro.start) / Math.max(appleIntro.ms, 1);
+    if (u <= 0) return 0;
+    if (u >= 1) return 1;
+    // Steady tumble for most of the roll, then a short ease into the corner.
+    const split = 0.74;
+    const covered = 0.86;
+    if (u <= split) return (u / split) * covered;
+    const t = (u - split) / (1 - split);
+    return covered + (1 - covered) * (1 - (1 - t) * (1 - t));
+  }
+  // Cubic from the left half of the bottom edge, out through the lower right,
+  // then up into the corner. Rotation is arc length around the ground axis,
+  // and the last stretch eases that tumble back onto the resting pose.
+  function buildMobileIntroPath() {
+    applyAppleLayout();
+    const w = Math.max(innerWidth, 1);
+    const h = Math.max(innerHeight, 1);
+    const radius = Math.max(appleScreenRadius(), 12);
+    const clearance = Math.max(radius, appleRollMargin()) + 48;
+    const hx = VIEW_APPLE.xPx;
+    const hy = VIEW_APPLE.topPx;
+    const p0 = { x: w * 0.34, y: h + clearance };
+    const p1 = { x: w * 0.94, y: h * 0.94 };
+    const p2 = { x: w * 0.7, y: hy + (h - hy) * 0.38 };
+    const p3 = { x: hx, y: hy };
+    const steps = 120;
+    const samples = new Array(steps + 1);
+    const cum = new Float64Array(steps + 1);
+    const qs = new Array(steps + 1);
+    const q = new THREE.Quaternion();
+    const dq = new THREE.Quaternion();
+    const axis = new THREE.Vector3();
+    samples[0] = { x: p0.x, y: p0.y };
+    qs[0] = new THREE.Quaternion();
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const u = 1 - t;
+      const a = u * u * u;
+      const b = 3 * u * u * t;
+      const c = 3 * u * t * t;
+      const d = t * t * t;
+      const x = a * p0.x + b * p1.x + c * p2.x + d * p3.x;
+      const y = a * p0.y + b * p1.y + c * p2.y + d * p3.y;
+      const prev = samples[i - 1];
+      const dx = x - prev.x;
+      const dy = y - prev.y;
+      const dist = Math.hypot(dx, dy);
+      cum[i] = cum[i - 1] + dist;
+      samples[i] = { x, y };
+      if (dist > 1e-4) {
+        axis.set(dy / dist, 0, -dx / dist);
+        dq.setFromAxisAngle(axis, dist / radius);
+        q.premultiply(dq).normalize();
+      }
+      qs[i] = q.clone();
+    }
+    samples[steps].x = p3.x;
+    samples[steps].y = p3.y;
+    return { p0, p1, p2, p3, samples, cum, qs, steps, length: cum[steps], radius, clearance };
+  }
+  function appleIntroPose() {
+    if (!appleIntro) return null;
+    const s = mobileIntroProgress();
+    if (!(s < 1)) return null;
+    const path = appleIntro.path;
+    if (!(s > 0)) {
+      introOrient.identity();
+      return {
+        dx: path.p0.x - VIEW_APPLE.xPx,
+        dy: path.p0.y - VIEW_APPLE.topPx,
+        q: introOrient,
+      };
+    }
+    const target = s * path.length;
+    let lo = 1;
+    let hi = path.steps;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (path.cum[mid] < target) lo = mid + 1;
+      else hi = mid;
+    }
+    const span = path.cum[lo] - path.cum[lo - 1] || 1;
+    const f = Math.min(1, Math.max(0, (target - path.cum[lo - 1]) / span));
+    const a = path.samples[lo - 1];
+    const b = path.samples[lo];
+    introOrient.copy(path.qs[lo - 1]).slerp(path.qs[lo], f);
+    const settleAt = 0.88;
+    if (s > settleAt) {
+      const w = Math.min(1, (s - settleAt) / (0.98 - settleAt));
+      const smooth = w * w * (3 - 2 * w);
+      introOrient.slerp(introIdentity, smooth);
+    }
+    return {
+      dx: a.x + (b.x - a.x) * f - VIEW_APPLE.xPx,
+      dy: a.y + (b.y - a.y) * f - VIEW_APPLE.topPx,
+      q: introOrient,
+    };
+  }
+  function beginMobileAppleIntro() {
+    appleRoll = null;
+    const path = buildMobileIntroPath();
+    const start = performance.now();
+    appleIntro = { start, ms: MOBILE_INTRO_MS, path };
+    appleEnter = {
+      fromX: 0,
+      fromY: 0,
+      rotX: 0,
+      rotY: 0,
+      rotZ: 0,
+      ms: MOBILE_INTRO_MS,
+      ease: 'linear',
+      start,
+    };
+    document.documentElement.classList.remove('apple-home');
+    const marks = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+      const i = Math.round(t * path.steps);
+      return {
+        t,
+        x: Math.round(path.samples[i].x),
+        y: Math.round(path.samples[i].y),
+      };
+    });
+    globalThis.__vanokIntroRoll = {
+      ms: MOBILE_INTRO_MS,
+      ease: 'steady, then ease-out over the last 26%',
+      length: Math.round(path.length),
+      radius: Math.round(path.radius),
+      turns: Math.round((path.length / (Math.PI * 2 * path.radius)) * 100) / 100,
+      clearance: Math.round(path.clearance),
+      start: { x: Math.round(path.p0.x), y: Math.round(path.p0.y) },
+      c1: { x: Math.round(path.p1.x), y: Math.round(path.p1.y) },
+      c2: { x: Math.round(path.p2.x), y: Math.round(path.p2.y) },
+      home: { x: Math.round(path.p3.x), y: Math.round(path.p3.y) },
+      marks,
+      t0: start,
+    };
+  }
+  function finishAppleIntro() {
+    document.documentElement.classList.add('apple-home');
+    window.__vanokStampsAt = performance.now() + INTRO_FADE_MS;
+  }
   function maybeStartAppleEnter() {
     if (appleEnter || !appleModel || !appleVisualReady) return;
     if (!document.documentElement.classList.contains('page-ready')) return;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduced) {
+      // First painted frame is already on the bottom of the path, not the corner.
+      beginMobileAppleIntro();
+      applyKeyLightAndPlace();
+      if (typeof renderer.compile === 'function') {
+        try { renderer.compile(scene, camera); } catch (err) {}
+      }
+      applyKeyLightAndPlace();
+      host.classList.add('apple-shown');
+      return;
+    }
     // Stay off-stage while the mesh uploads. Cached files still begin at t = 0.
     applyKeyLightAndPlace();
     if (typeof renderer.compile === 'function') {
@@ -5088,6 +5274,7 @@ function mountViewportApple() {
     appleEnter = captureAppleEnter();
     applyKeyLightAndPlace();
     host.classList.add('apple-shown');
+    finishAppleIntro();
   }
   function restartAppleEnter() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -5095,7 +5282,9 @@ function mountViewportApple() {
       appleEnter = null;
       return;
     }
-    appleEnter = captureAppleEnter();
+    beginMobileAppleIntro();
+    applyKeyLightAndPlace();
+    host.classList.add('apple-shown');
   }
   function applyAppleLayout() {
     const mobile = matchMedia('(max-width: 440px)').matches;
@@ -5211,6 +5400,9 @@ function mountViewportApple() {
       rollAxis.set(roll.ty / len, 0, -roll.tx / len);
       rollQuat.setFromAxisAngle(rollAxis, roll.angle);
       gazeBase.premultiply(rollQuat);
+    } else if (appleIntro) {
+      const pose = appleIntroPose();
+      if (pose) gazeBase.premultiply(pose.q);
     }
     gazePitch.setFromAxisAngle(axisX, gaze.sy * GAZE + drag.pitch);
     gazeYaw.setFromAxisAngle(axisUp, gaze.sx * GAZE + drag.yaw);
@@ -5272,7 +5464,7 @@ function mountViewportApple() {
     if (event.pointerType === 'touch' && event.isPrimary === false) return;
     if (uiOwnsPointer(event)) return;
     if (!hitsViewportApple(event)) return;
-    if (appleRollAway()) {
+    if (appleIntro || appleRollAway()) {
       holdStampForAppleGesture();
       const token = dragBlockToken;
       setTimeout(() => {
@@ -6037,15 +6229,29 @@ function mountViewportApple() {
   syncViewportApple();
 
   applyKeyLightAndPlace();
+  // If the mesh never arrives, the name still comes in. A roll already
+  // running keeps the lettering hidden until the apple is home.
+  setTimeout(() => {
+    if (!document.documentElement.classList.contains('apple-home') && !appleModel && !appleIntro) {
+      finishAppleIntro();
+    }
+  }, 8000);
   renderer.setAnimationLoop(() => {
     if (!alive) return;
     maybeStartAppleEnter();
+    if (appleIntro && performance.now() - appleIntro.start >= appleIntro.ms) {
+      const report = globalThis.__vanokIntroRoll;
+      if (report && report.homeAt == null) report.homeAt = performance.now();
+      appleIntro = null;
+      finishAppleIntro();
+    }
     stepAppleDip();
     const flying = !!(appleEnter && performance.now() - appleEnter.start < appleEnter.ms);
     const rolling = appleRolling();
     const dipping = appleDip > 0.04 || appleDipTarget() > 0;
-    if (!appleEnter || flying || !appleEnter.settled || rolling || dipping) {
-      if (appleEnter && !flying) appleEnter.settled = true;
+    const introPlaying = !!appleIntro;
+    if (!appleEnter || flying || !appleEnter.settled || rolling || dipping || introPlaying) {
+      if (appleEnter && !flying && !introPlaying) appleEnter.settled = true;
       applyKeyLightAndPlace();
     }
     if (appleRoll && !appleRolling()) {
@@ -6062,12 +6268,21 @@ function mountViewportApple() {
       const prev = trace[trace.length - 1];
       if (!prev || age - prev.age >= 220) {
         const rot = appleEnterRot();
+        const yOff = appleEnterOffset();
+        const xOff = appleEnterXOffset();
+        const vanokEl = document.querySelector('.mob .vanok');
+        const bioEl = document.querySelector('.mob .bio');
         trace.push({
           age: Math.round(age),
-          ease: Math.round(appleEnterEase() * 1000) / 1000,
-          off: Math.round(appleEnterOffset()),
+          ease: Math.round((appleIntro ? mobileIntroProgress() : appleEnterEase()) * 1000) / 1000,
+          off: Math.round(yOff),
+          x: Math.round(xOff),
+          spin: Math.round(introOrient.angleTo(introIdentity) * 180 / Math.PI),
           y: Math.round(rot.y * 10) / 10,
           z: Math.round(rot.z * 10) / 10,
+          vanok: vanokEl ? Math.round(parseFloat(getComputedStyle(vanokEl).opacity) * 100) : null,
+          bio: bioEl ? Math.round(parseFloat(getComputedStyle(bioEl).opacity) * 100) : null,
+          home: document.documentElement.classList.contains('apple-home'),
         });
       }
       if (!globalThis.__enterFrames) globalThis.__enterFrames = [];
