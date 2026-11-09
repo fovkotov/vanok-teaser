@@ -70,7 +70,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     color: #ffffff;
   }
 
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Touch browsers paint a gray tap flash and a focus ring after a tap.
+     Keyboard focus on a fine pointer is left alone. The signature field
+     keeps its caret; this only removes the browser chrome. */
+  @media (hover: none), (pointer: coarse) {
+    :focus,
+    :focus-visible,
+    :active {
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
 
   html, body {
     margin: 0;
@@ -435,7 +449,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     transform: translate(-50%, -50%);
     visibility: hidden;
   }
-  @media (hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     .site-credits:hover .credits-full { visibility: hidden; }
     .site-credits:hover .credits-name { visibility: visible; }
   }
@@ -1234,7 +1248,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .draw-sig-btn.is-held,
   .catalog-entry.is-held { visibility: hidden; pointer-events: none; }
-  @media (hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     html.page-ready .draw-sig-btn,
     html.page-ready .catalog-entry,
     html.page-ready .ig-link,
@@ -4814,22 +4828,28 @@ function mountViewportApple() {
   // rounded to whole turns so the euler ends on 69.7 / -172.9 / -33.2.
   // followPointer writes that roll into the quaternion every frame.
   //
-  // APPLE_ROLL_MS is the 1× duration of that whole circle under easeSlow, the
-  // curve this roll already uses. On screen — exit and return — each arc still
-  // costs that time, so the visible speed stays. Off screen the center is
-  // outside the viewport by half the fitted on-screen size (the body has
-  // cleared the edge), and that arc costs half the time: 2×. The click ends
-  // on the resting pose, sooner than APPLE_ROLL_MS by half the off-screen
-  // time. Radii are unchanged. Spin stays tied to arc length, so the faster
-  // off-screen arc also spins at 2× and no extra turn is added.
-  // easeSlow is flat at the finish, so the apple is already on the resting
-  // pose while the clock still has about two seconds left. The click lock
-  // ends on that pose. A click during the roll is ignored and is not queued.
+  // APPLE_ROLL_MS is the 1× duration of the outbound circle under easeSlow.
+  // On screen the exit keeps that timing. Off screen the center is outside
+  // the viewport by half the fitted size, and that arc costs half the time.
+  // Spin stays tied to arc length, so the faster off-screen arc spins at 2×
+  // and no extra turn is added. The return does not keep easeSlow's flat
+  // tail: once the apple is back on screen it drives home on a settle whose
+  // translation and rotation ease out together and reach the resting pose
+  // with no snap. A click while it is clearly away is ignored and not queued.
+  // A click once it is visually back in the resting spot starts the next roll
+  // immediately, including during the last of that settle.
   const APPLE_ROLL_MS = 11000;
   const APPLE_ROLL_STEPS = 480;
+  const APPLE_DIP_HOVER = 8;
+  const APPLE_DIP_PRESS = 18;
   const rollQuat = new THREE.Quaternion();
   const rollAxis = new THREE.Vector3();
   let appleRoll = null;
+  let appleHovering = false;
+  let applePressing = false;
+  let applePressAt = 0;
+  let appleDip = 0;
+  let appleDipClock = performance.now();
   function appleRollSpec() {
     const mobile = matchMedia('(max-width: 440px)').matches;
     const h = Math.max(innerHeight, 1);
@@ -4838,22 +4858,53 @@ function mountViewportApple() {
     }
     return { radius: h * 0.21, theta0: -160 * Math.PI / 180, dir: -1 };
   }
-  // Home again: center within 1px and tumble within 2°. u <= 0.5 is the
-  // departure, so the lock stays up until the apple has come back.
-  function appleRollArrived(spec, u) {
-    if (u >= 1) return true;
-    if (!(u > 0.5)) return false;
-    const chord = 2 * spec.radius * Math.abs(Math.sin(Math.PI * u));
-    if (chord > 1) return false;
-    const turns = Math.max(1, Math.round(spec.radius / appleScreenRadius()));
-    return 360 * turns * (1 - u) <= 2;
+  function appleRollChord(spec, u) {
+    return 2 * spec.radius * Math.abs(Math.sin(Math.PI * u));
   }
+  // Visually back in the seat. Wider than a pixel, so the last settle does
+  // not leave a dead gap after the apple already looks home. u <= 0.5 is
+  // the departure and stays locked.
+  function appleInRestSpot(spec, u) {
+    if (!(u > 0.5)) return false;
+    return appleRollChord(spec, u) <= Math.max(16, appleScreenRadius() * 0.26);
+  }
+  function appleRollU(elapsed) {
+    if (!appleRoll) return 1;
+    return appleRollParam(appleRoll.clock, elapsed == null ? performance.now() - appleRoll.start : elapsed);
+  }
+  // Still playing, including the settle. This is not the click lock.
   function appleRolling() {
     if (!appleRoll) return false;
     const elapsed = performance.now() - appleRoll.start;
     if (elapsed >= appleRoll.clock.duration) return false;
-    const u = appleRollParam(appleRoll.clock, elapsed);
-    return !appleRollArrived(appleRoll.spec, u);
+    const u = appleRollU(elapsed);
+    return u > 0 && u < 1;
+  }
+  // Clearly away on the circle. Clicks here are dropped, not queued.
+  function appleRollAway() {
+    if (!appleRolling()) return false;
+    return !appleInRestSpot(appleRoll.spec, appleRollU());
+  }
+  function appleFinePointer() {
+    return matchMedia('(hover: hover) and (pointer: fine)').matches;
+  }
+  function appleNearHome() {
+    if (!appleRoll) return true;
+    return appleRollChord(appleRoll.spec, appleRollU()) <= Math.max(36, appleScreenRadius() * 0.5);
+  }
+  function appleDipTarget() {
+    const pressAge = performance.now() - applePressAt;
+    if (applePressing && (appleNearHome() || pressAge < 160)) return APPLE_DIP_PRESS;
+    if (!appleRollAway() && appleFinePointer() && appleHovering) return APPLE_DIP_HOVER;
+    return 0;
+  }
+  function stepAppleDip() {
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (now - appleDipClock) / 1000));
+    appleDipClock = now;
+    const target = appleDipTarget();
+    appleDip += (target - appleDip) * (1 - Math.exp(-dt * 26));
+    if (Math.abs(target - appleDip) < 0.04) appleDip = target;
   }
   function appleScreenRadius() {
     const w = Math.max(innerWidth, 2);
@@ -4907,9 +4958,13 @@ function mountViewportApple() {
     const m = layout.margin;
     return x < -m || y < -m || x > layout.w + m || y > layout.h + m;
   }
-  // Arc-length clock. easeAt[i] is the old easeSlow time-fraction at u=i/steps.
-  // On screen, wall time advances with that fraction (1×). Off screen it
-  // advances twice as fast (2×). u itself stays the arc parameter.
+  // Arc-length clock for the outbound roll. easeAt[i] is the easeSlow
+  // time-fraction at u=i/steps. On screen, wall time advances with that
+  // fraction (1×). Off screen it advances twice as fast (2×). Once the apple
+  // has come back on screen, the remaining arc is a settle: same circle, spin
+  // still tied to arc length, speed matched at the handoff and eased to zero
+  // at home. If the path never leaves the screen, the settle starts after the
+  // outbound half so the departure itself stays on easeSlow.
   function appleRollClock(spec) {
     const steps = APPLE_ROLL_STEPS;
     const times = new Float64Array(steps + 1);
@@ -4923,19 +4978,42 @@ function mountViewportApple() {
       c0: Math.cos(spec.theta0),
       s0: Math.sin(spec.theta0),
     };
+    let seenOff = false;
+    let arriveStep = 0;
     for (let i = 0; i < steps; i++) {
       const u1 = (i + 1) / steps;
       const ease = i + 1 === steps ? 1 : appleRollEaseInverse(u1);
-      const off = appleRollOffScreen(spec, layout, (i + 0.5) / steps);
+      const uMid = (i + 0.5) / steps;
+      const off = appleRollOffScreen(spec, layout, uMid);
+      if (uMid > 0.5 && off) seenOff = true;
+      if (!arriveStep && seenOff && !off && uMid > 0.5) arriveStep = i + 1;
       const dtOld = Math.max(0, (ease - easeAt[i]) * APPLE_ROLL_MS);
       times[i + 1] = times[i] + dtOld / (off ? 2 : 1);
       easeAt[i + 1] = ease;
     }
-    return { times, easeAt, steps, duration: times[steps] };
+    if (!arriveStep) arriveStep = Math.round(steps * 0.62);
+    const arriveTime = times[arriveStep];
+    const arriveU = easeSlow(Math.min(1, Math.max(0, easeAt[arriveStep])));
+    const partial = { times, easeAt, steps };
+    const back = Math.min(28, Math.max(8, arriveTime));
+    const uBack = arriveTime > back ? appleRollEaseU(partial, arriveTime - back) : easeSlow(Math.min(1, easeAt[Math.max(0, arriveStep - 1)]));
+    const duDt = Math.max(1e-4, (arriveU - uBack) / (Math.min(back, arriveTime) / 1000));
+    // Quadratic ease-out has p'(0) = 2, so the duration that matches the
+    // incoming speed is twice the constant-speed time. It only slows down.
+    let settleMs = 2 * (1 - arriveU) / duDt * 1000;
+    if (!Number.isFinite(settleMs)) settleMs = 1200;
+    settleMs = Math.min(3400, Math.max(480, settleMs));
+    return {
+      times,
+      easeAt,
+      steps,
+      arriveTime,
+      arriveU,
+      settleMs,
+      duration: arriveTime + settleMs,
+    };
   }
-  function appleRollParam(clock, elapsed) {
-    if (elapsed <= 0) return 0;
-    if (elapsed >= clock.duration) return 1;
+  function appleRollEaseU(clock, elapsed) {
     const times = clock.times;
     let lo = 1;
     let hi = clock.steps;
@@ -4950,10 +5028,21 @@ function mountViewportApple() {
     const ease = clock.easeAt[lo - 1] + (clock.easeAt[lo] - clock.easeAt[lo - 1]) * f;
     return easeSlow(Math.min(1, Math.max(0, ease)));
   }
+  function appleRollParam(clock, elapsed) {
+    if (elapsed <= 0) return 0;
+    if (elapsed >= clock.duration) return 1;
+    if (!(elapsed > clock.arriveTime)) return appleRollEaseU(clock, elapsed);
+    const s = Math.min(1, (elapsed - clock.arriveTime) / clock.settleMs);
+    // Ease-out: p'(0) = 2 and p'(1) = 0, and the slope only falls. Translation
+    // and spin share s, so the apple is still turning as it rolls to a stop.
+    const remain = 1 - s;
+    const p = 1 - remain * remain;
+    return clock.arriveU + (1 - clock.arriveU) * p;
+  }
   function appleRollSample() {
     if (!appleRoll) return null;
-    const u = appleRollParam(appleRoll.clock, performance.now() - appleRoll.start);
-    if (!(u > 0) || appleRollArrived(appleRoll.spec, u)) return null;
+    const u = appleRollU();
+    if (!(u > 0) || u >= 1) return null;
     const spec = appleRoll.spec;
     const theta = spec.theta0 + spec.dir * Math.PI * 2 * u;
     const c0 = Math.cos(spec.theta0);
@@ -4969,7 +5058,7 @@ function mountViewportApple() {
   }
   function startAppleRoll() {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (appleRolling()) return;
+    if (appleRollAway()) return;
     const spec = appleRollSpec();
     appleRoll = { start: performance.now(), spec, clock: appleRollClock(spec) };
   }
@@ -5139,10 +5228,13 @@ function mountViewportApple() {
     const h = Math.max(innerHeight, 1);
     gaze.x = (event.clientX / w) * 2 - 1;
     gaze.y = (event.clientY / h) * 2 - 1;
+    if (event.pointerType === 'touch' || !appleFinePointer()) appleHovering = false;
+    else appleHovering = hitsViewportApple(event);
   }
   function onPointerLeave() {
     gaze.x = 0;
     gaze.y = 0;
+    appleHovering = false;
   }
 
   function hitsViewportApple(event) {
@@ -5180,7 +5272,7 @@ function mountViewportApple() {
     if (event.pointerType === 'touch' && event.isPrimary === false) return;
     if (uiOwnsPointer(event)) return;
     if (!hitsViewportApple(event)) return;
-    if (appleRolling()) {
+    if (appleRollAway()) {
       holdStampForAppleGesture();
       const token = dragBlockToken;
       setTimeout(() => {
@@ -5189,6 +5281,8 @@ function mountViewportApple() {
       if (event.cancelable) event.preventDefault();
       return;
     }
+    applePressing = true;
+    applePressAt = performance.now();
     startAppleRoll();
     drag.active = true;
     drag.pointerId = event.pointerId;
@@ -5214,6 +5308,7 @@ function mountViewportApple() {
   }
 
   function onApplePointerUp(event) {
+    if (event.pointerId === drag.pointerId) applePressing = false;
     if (!drag.active || event.pointerId !== drag.pointerId) return;
     drag.active = false;
     releaseStampAfterAppleGesture();
@@ -5261,7 +5356,7 @@ function mountViewportApple() {
     if (appleModel) appleModel.scale.setScalar(0.78 * poseSize);
     const roll = appleRollSample();
     const enterX = appleEnterXOffset() + (roll ? roll.dx : 0);
-    const enterY = appleEnterOffset() + (roll ? roll.dy : 0);
+    const enterY = appleEnterOffset() + (roll ? roll.dy : 0) + appleDip;
     tilt.position.set(
       ((VIEW_APPLE.xPx + enterX) / w) * viewW - viewW / 2,
       0,
@@ -5945,9 +6040,11 @@ function mountViewportApple() {
   renderer.setAnimationLoop(() => {
     if (!alive) return;
     maybeStartAppleEnter();
+    stepAppleDip();
     const flying = !!(appleEnter && performance.now() - appleEnter.start < appleEnter.ms);
     const rolling = appleRolling();
-    if (!appleEnter || flying || !appleEnter.settled || rolling) {
+    const dipping = appleDip > 0.04 || appleDipTarget() > 0;
+    if (!appleEnter || flying || !appleEnter.settled || rolling || dipping) {
       if (appleEnter && !flying) appleEnter.settled = true;
       applyKeyLightAndPlace();
     }
@@ -6069,6 +6166,10 @@ function mountViewportApple() {
       enterMs: appleEnter ? appleEnter.ms : fly.ms,
       enterEaseName: appleEnter ? appleEnter.ease : fly.ease,
       tiltZ: tilt.position.z,
+      rollU: appleRoll ? Math.round(appleRollU() * 1000) / 1000 : 0,
+      rollAway: appleRollAway(),
+      rollChord: appleRoll ? Math.round(appleRollChord(appleRoll.spec, appleRollU()) * 10) / 10 : 0,
+      dip: Math.round(appleDip * 10) / 10,
     };
   }
   readViewportApple.set = (patch) => {
