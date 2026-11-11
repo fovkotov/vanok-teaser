@@ -1240,6 +1240,65 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .sig-upload,
     .sig-create { font-size: calc(14 * var(--k)); padding: 12px 0; }
   }
+  /* Keep the stamp library on its 1440px design scale on large displays. */
+  @media (min-width: 441px) {
+    .sig-modal { --k: clamp(0.85px, calc(100vw / 1440), 2.6667px); }
+    .sig-close, .sig-back {
+      left: calc(24 * var(--k));
+      top: calc(24 * var(--k));
+      width: calc(24 * var(--k));
+      height: calc(24 * var(--k));
+    }
+    .sig-close::before, .sig-back::before {
+      left: calc(5 * var(--k));
+      top: calc(5 * var(--k));
+      width: calc(14 * var(--k));
+      height: calc(14 * var(--k));
+    }
+    .sig-close::after, .sig-back::after {
+      left: calc(12 * var(--k));
+      top: calc(12 * var(--k));
+      width: calc(44 * var(--k));
+      height: calc(44 * var(--k));
+    }
+    .sig-title { top: calc(24 * var(--k)); }
+    .sig-head { width: min(calc(464 * var(--k)), calc(100% - 24 * var(--k))); gap: calc(12 * var(--k)); padding: calc(12 * var(--k)) 0; }
+    .sig-head-side { gap: calc(8 * var(--k)); }
+    .sig-grid {
+      left: calc(12 * var(--k));
+      width: calc(100vw - 24 * var(--k));
+      padding: calc(100 * var(--k)) 0 calc(24 * var(--k));
+      column-gap: calc(12 * var(--k));
+      row-gap: calc(16 * var(--k));
+    }
+    .sig-shapes { --shape: min(calc(342.873 * var(--k)), calc((100% - 16.253 * var(--k)) / 2)); }
+    .sig-shape[data-kind="stamp"] { left: calc(50% - var(--shape) - 8.1265 * var(--k)); }
+    .sig-shape[data-kind="apple"] { left: calc(50% + 8.1265 * var(--k)); }
+    .sig-seal {
+      width: min(calc(461.859 * var(--k)), calc(100vw - 48 * var(--k)));
+      height: min(calc(461.859 * var(--k)), calc(100vw - 48 * var(--k)));
+    }
+    .sig-swatches {
+      top: calc(50% + min(230.93 * var(--k), (100vw - 48 * var(--k)) / 2) + 24 * var(--k));
+    }
+    .sig-swatches button { width: calc(32 * var(--k)); height: calc(32 * var(--k)); }
+    .sig-swatches button.on::after {
+      width: calc(8 * var(--k));
+      height: calc(8 * var(--k));
+    }
+    .sig-bar {
+      width: min(calc(462 * var(--k)), calc(100% - 48 * var(--k)));
+      padding: calc(12 * var(--k)) 0;
+    }
+    .sig-upload, .sig-create {
+      gap: calc(8 * var(--k));
+      padding: calc(12 * var(--k)) 0;
+    }
+    .sig-upload-mark, .sig-create-mark {
+      width: calc(14 * var(--k));
+      height: calc(14 * var(--k));
+    }
+  }
   .sig-card {
     grid-column: span 2;
     aspect-ratio: 1;
