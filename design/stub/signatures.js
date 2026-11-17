@@ -1453,6 +1453,9 @@
     var card = document.createElement('div');
     card.className = 'sig-card';
     card.dataset.id = item.id;
+    if (!item.preset && Number(item.createdAt) >= 1794955554000) {
+      card.setAttribute('data-expanded-export', '');
+    }
     var img = document.createElement('img');
     img.alt = '';
     img.draggable = false;

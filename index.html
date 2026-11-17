@@ -1359,6 +1359,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .sig-grid .sig-card:not(.sig-add) { cursor: pointer; }
   .sig-card img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .sig-card[data-expanded-export] img {
+    transform: scale(var(--sig-library-mobile-scale, 1));
+    transform-origin: center;
+  }
+  @media (min-width: 441px) {
+    .sig-card[data-expanded-export] img {
+      transform: scale(var(--sig-library-desktop-scale, 1));
+    }
+  }
   .sig-add {
     margin: 0;
     padding: 0;
@@ -1597,7 +1606,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261118-uncropped-apple"></script>
+<script src="design/stub/signatures.js?v=20261118-library-scale"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -2824,7 +2833,8 @@ function mountSignStamp(host) {
         }
       }
       sync();
-      paintMarks();
+      if (rig === libraryScale) syncLibraryScale();
+      else paintMarks();
     });
     sync();
     head.append(name, val);
@@ -3194,12 +3204,18 @@ function mountSignStamp(host) {
   }
   const printSettings = document.createElement('div');
   printSettings.append(tabs, stampPane, applePane);
-  const newPrintScale = { mobile: 1, desktop: 1 };
-  const newPrintSettings = document.createElement('div');
-  addSlider(newPrintSettings, newPrintScale, 'Мобильный · до 440 px', 'mobile', 0.3, 2.5, 0.01, pct, true);
-  addSlider(newPrintSettings, newPrintScale, 'Десктоп · от 441 px', 'desktop', 0.3, 2.5, 0.01, pct, true);
+  const libraryScale = { mobile: 1, desktop: 1 };
+  function syncLibraryScale() {
+    const root = document.documentElement;
+    root.style.setProperty('--sig-library-mobile-scale', String(libraryScale.mobile));
+    root.style.setProperty('--sig-library-desktop-scale', String(libraryScale.desktop));
+  }
+  syncLibraryScale();
+  const librarySettings = document.createElement('div');
+  addSlider(librarySettings, libraryScale, 'Мобильный · до 440 px', 'mobile', 0.3, 2.5, 0.01, pct, true);
+  addSlider(librarySettings, libraryScale, 'Десктоп · от 441 px', 'desktop', 0.3, 2.5, 0.01, pct, true);
   panelContent.append(
-    settingsSection('Масштаб новых оттисков', newPrintSettings, true),
+    settingsSection('Масштаб новых печатей в библиотеке', librarySettings, true),
     settingsSection('Вектор и трансформ', xformBlock, true),
     settingsSection('Оттиск и анимация', printSettings, true),
     settingsSection('Свет и материалы', iceBlock, false),
@@ -3216,7 +3232,7 @@ function mountSignStamp(host) {
     const config = {
       stamp: { ...stampRig },
       apple: { ...appleRig },
-      newPrintScale: { ...newPrintScale },
+      libraryScale: { ...libraryScale },
       transform: {
         viewportApple: { ...viewAppleXform },
         half: { ...toolXform.apple },
@@ -3319,7 +3335,6 @@ function mountSignStamp(host) {
       py: current.py,
       castHex: current.castHex,
       custom: !!current.custom,
-      newExport: !!current.newExport,
     });
     const ui = fileUis.find((item) => item.kind === current.kind);
     if (ui) {
@@ -3354,8 +3369,6 @@ function mountSignStamp(host) {
       castHex: item.castHex,
       bodyHex: themed == null ? item.castHex : themed,
       custom: true,
-      // The expanded export bounds were deployed on 18 November 2026.
-      newExport: Number(item.createdAt) >= 1794955554000,
     };
   }
   function castFromStock(kind, cast) {
@@ -3472,8 +3485,7 @@ function mountSignStamp(host) {
       // Mobile imprints are 1.2× from the first paint, so the dry-in matches.
       const imgW = (mark.kind === 'apple'
         ? fitted * (mark.custom ? APPLE_INK_FRAC : 1) * rig.imprintScale
-        : (mark.custom ? fitted : fitted / INK_FRAC)) * mobileInk
-        * (mark.newExport ? newPrintScale[mobileInk > 1 ? 'mobile' : 'desktop'] : 1);
+        : (mark.custom ? fitted : fitted / INK_FRAC)) * mobileInk;
       mark.el.style.left = `calc(${mark.px * 100}% + ${rig.offsetX}px)`;
       mark.el.style.top = `calc(${mark.py * 100}% + ${rig.offsetY}px)`;
       mark.el.style.width = imgW + 'px';
