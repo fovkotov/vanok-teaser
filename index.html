@@ -3204,7 +3204,7 @@ function mountSignStamp(host) {
   }
   const printSettings = document.createElement('div');
   printSettings.append(tabs, stampPane, applePane);
-  const libraryScale = { mobile: 1, desktop: 1.27 };
+  const libraryScale = { mobile: 1.27, desktop: 1.27 };
   function syncLibraryScale() {
     const root = document.documentElement;
     root.style.setProperty('--sig-library-mobile-scale', String(libraryScale.mobile));
