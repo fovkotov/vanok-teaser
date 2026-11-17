@@ -1611,7 +1611,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261117-photo-gestures"></script>
+<script src="design/stub/signatures.js?v=20261118-ready-imprints"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -2735,17 +2735,54 @@ function mountSignStamp(host) {
   appleRig.imprintRot = 19.2;
   appleRig.imprintScale = 0.95;
 
-  for (const item of [...STAMP_IMPRINTS, ...APPLE_IMPRINTS]) {
-    const preload = new Image();
-    preload.src = item.src;
+  // Keep decoded source images alive and limit background downloads on phones.
+  const inkImages = new Map();
+  const inkQueue = [];
+  let inkDownloads = 0;
+  function prepareInk(src) {
+    let entry = inkImages.get(src);
+    if (entry) return entry;
+    entry = { image: null, ready: false, resolve: null };
+    entry.promise = new Promise((resolve) => { entry.resolve = resolve; });
+    inkImages.set(src, entry);
+    inkQueue.push({ src, entry });
+    loadNextInk();
+    return entry;
   }
-  if (window.VanokSignatures && typeof window.VanokSignatures.catalog === 'function') {
-    for (const item of window.VanokSignatures.catalog()) {
-      if (!item || !item.src) continue;
-      const preload = new Image();
-      preload.src = item.src;
+  function loadNextInk() {
+    while (inkDownloads < 3 && inkQueue.length) {
+      const { src, entry } = inkQueue.shift();
+      inkDownloads += 1;
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.decoding = 'async';
+      let settled = false;
+      const timeout = setTimeout(() => finish(false), 15000);
+      const finish = (ready) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        entry.ready = ready;
+        entry.image = ready ? image : null;
+        entry.resolve(entry.image);
+        inkDownloads -= 1;
+        loadNextInk();
+      };
+      image.onload = () => {
+        image.decode().then(() => finish(true), () => finish(image.naturalWidth > 0));
+      };
+      image.onerror = () => finish(false);
+      image.src = src;
     }
   }
+  function prepareCatalogInk() {
+    const catalog = window.VanokSignatures?.catalog() || [];
+    for (const item of [...STAMP_IMPRINTS, ...APPLE_IMPRINTS, ...catalog]) {
+      if (item?.src) prepareInk(item.src);
+    }
+  }
+  document.addEventListener('vanok-catalog', prepareCatalogInk);
+  prepareCatalogInk();
 
   const panel = document.createElement('aside');
   panel.className = 'stamp-panel';
@@ -3328,7 +3365,16 @@ function mountSignStamp(host) {
   refreshFiles();
 
   function placeInk(current) {
-    if (current.placed || !current.src) return;
+    if (current.placed || current.preparing || !current.src) return;
+    const prepared = prepareInk(current.src);
+    if (!prepared.ready) {
+      current.preparing = true;
+      prepared.promise.then((image) => {
+        current.preparing = false;
+        if (image && alive && host.isConnected) placeInk(current);
+      });
+      return;
+    }
     current.placed = true;
     if (current.rig.stack === 'replace') {
       for (let i = marks.length - 1; i >= 0; i--) {
@@ -3339,11 +3385,10 @@ function mountSignStamp(host) {
     while (marks.length >= stampCap()) dropOldestStamp();
     const el = document.createElement('div');
     el.className = 'sign-imprint';
-    const img = document.createElement('img');
+    const img = prepared.image.cloneNode();
     img.className = 'ink';
     img.alt = '';
     img.draggable = false;
-    img.src = current.src;
     const dye = document.createElement('div');
     dye.className = 'dye';
     dye.style.webkitMaskImage = `url("${current.src}")`;
@@ -3394,7 +3439,7 @@ function mountSignStamp(host) {
       const dpr = Math.min(devicePixelRatio || 1, 2);
       let cw = Math.max(1, Math.round(cssW * dpr));
       let ch = Math.max(1, Math.round(cw * (photo.naturalHeight / photo.naturalWidth)));
-      const cap = 420;
+      const cap = matchMedia('(max-width: 440px)').matches ? 192 : 420;
       const longest = Math.max(cw, ch);
       if (longest > cap) {
         const fit = cap / longest;
@@ -3864,9 +3909,13 @@ function mountSignStamp(host) {
     const store = window.VanokSignatures;
     if (!store || typeof store.catalog !== 'function') return null;
     const list = (store.catalog() || []).filter((item) => {
-      return item && item.src && (item.kind === 'stamp' || item.kind === 'apple');
+      return item && item.src && (item.kind === 'stamp' || item.kind === 'apple')
+        && prepareInk(item.src).ready;
     });
-    if (!list.length) return null;
+    if (!list.length) {
+      const presets = (store.catalog() || []).filter((item) => item.preset && item.src);
+      return presets.find((item) => prepareInk(item.src).ready) || null;
+    }
     const key = list.map((item) => item.id).join('|');
     if (!catalogBag.length || catalogKey !== key) {
       catalogBag = list.slice();
@@ -4666,6 +4715,7 @@ function mountSignStamp(host) {
 
   return () => {
     alive = false;
+    document.removeEventListener('vanok-catalog', prepareCatalogInk);
     stampCapQuery.removeEventListener('change', onStampCapChange);
     removeEventListener('resize', onStampCapChange);
     while (flights.length) releaseFlight(flights.pop());

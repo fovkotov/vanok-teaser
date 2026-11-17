@@ -1483,6 +1483,8 @@
     var img = document.createElement('img');
     img.alt = '';
     img.draggable = false;
+    img.decoding = 'async';
+    img.loading = 'lazy';
     img.src = item.src;
     card.appendChild(img);
     if (pending && pending.id === item.id) card.classList.add('is-armed');
@@ -1507,6 +1509,7 @@
   }
   function renderGrid(freshId, from) {
     var list = catalog();
+    document.dispatchEvent(new Event('vanok-catalog'));
     var nodes = [addCard()].concat(list.map(cardNode));
     grid.replaceChildren.apply(grid, nodes);
     if (!freshId || !from || from.width < 1) return;
