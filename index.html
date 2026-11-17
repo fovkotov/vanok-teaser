@@ -487,7 +487,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     display: block;
     transform-origin: center center;
     pointer-events: none;
-    opacity: var(--ink-opacity, 1);
   }
   .sign-imprint .ink {
     display: block;
@@ -507,14 +506,19 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     -webkit-mask-size: 100% 100%;
     mask-size: 100% 100%;
   }
+  /* Wet ink settles onto the sharp print. The bitmap reveal lives in JS. */
   .sign-imprint .ink-dry {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    transform-origin: center center;
+    animation: ink-dry-settle 760ms cubic-bezier(0.16, 0.64, 0.2, 1) both;
   }
-  .sign-imprint.is-leaving { animation: print-dismiss 150ms ease-in both; }
-  @keyframes print-dismiss { to { opacity: 0; } }
+  @keyframes ink-dry-settle {
+    from { transform: scale(1.028); }
+    to { transform: none; }
+  }
   .stamp-panel {
     position: fixed;
     z-index: 100;
@@ -3165,40 +3169,7 @@ function mountSignStamp(host) {
   }
   const printSettings = document.createElement('div');
   printSettings.append(tabs, stampPane, applePane);
-  const inkEffect = {
-    duration: 0,
-    initialDensity: 0.85,
-    textureStrength: 0.3,
-    textureFrequencyX: 9.2,
-    textureFrequencyY: 9.4,
-    hairlineDelay: 0.37,
-    edgeDelay: 0.21,
-    coreDelay: 0,
-    softness: 0.6,
-    headStart: 0.34,
-    ease: 2.65,
-    resolution: 320,
-  };
-  const inkSettings = document.createElement('div');
-  const inkControls = [
-    ['Длительность · 0 выключает эффект', 'duration', 0, 800, 5, (n) => n + ' мс'],
-    ['Начальная плотность', 'initialDensity', 0, 1, 0.01, pct],
-    ['Выраженность текстуры', 'textureStrength', 0, 0.3, 0.005, (n) => n.toFixed(3)],
-    ['Частота текстуры по X', 'textureFrequencyX', 1, 40, 0.1, (n) => n.toFixed(1)],
-    ['Частота текстуры по Y', 'textureFrequencyY', 1, 40, 0.1, (n) => n.toFixed(1)],
-    ['Задержка тонких линий', 'hairlineDelay', 0, 1, 0.01, pct],
-    ['Задержка краёв штриха', 'edgeDelay', 0, 1, 0.01, pct],
-    ['Задержка середины штриха', 'coreDelay', 0, 1, 0.01, pct],
-    ['Мягкость проявления', 'softness', 0.01, 0.6, 0.01, pct],
-    ['Сдвиг начала проявления', 'headStart', 0, 1, 0.01, pct],
-    ['Ускорение проявления', 'ease', 1, 4, 0.05, (n) => n.toFixed(2)],
-    ['Разрешение текстуры', 'resolution', 64, 320, 1, (n) => n + ' px'],
-  ];
-  for (const [label, key, min, max, step, format] of inkControls) {
-    addSlider(inkSettings, inkEffect, label, key, min, max, step, format, false);
-  }
   panelContent.append(
-    settingsSection('Текстура оттиска', inkSettings, true),
     settingsSection('Вектор и трансформ', xformBlock, true),
     settingsSection('Оттиск и анимация', printSettings, true),
     settingsSection('Свет и материалы', iceBlock, false),
@@ -3215,7 +3186,6 @@ function mountSignStamp(host) {
     const config = {
       stamp: { ...stampRig },
       apple: { ...appleRig },
-      inkEffect: { ...inkEffect },
       transform: {
         viewportApple: { ...viewAppleXform },
         half: { ...toolXform.apple },
@@ -3248,109 +3218,18 @@ function mountSignStamp(host) {
   function stampCap() {
     return stampCapQuery.matches ? 6 : 20;
   }
-  function releaseMark(mark) {
-    if (!mark || !mark.el || mark.leaving) return;
-    mark.leaving = true;
-    const el = mark.el;
-    const finish = () => { if (el.isConnected) el.remove(); };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return finish();
-    el.classList.add('is-leaving');
-    el.addEventListener('animationend', finish, { once: true });
-    setTimeout(finish, 220);
+  const INK_DRY_MS = 760;
+  const INK_DRY_EASE = 'cubic-bezier(0.16, 0.64, 0.2, 1)';
+
+  function inkDryEase(t) {
+    return 1 - (1 - t) ** 2.15;
   }
 
-  function dropOldestStamp() {
-    const oldest = marks.shift();
-    if (oldest) releaseMark(oldest);
-  }
-  function trimStampsToCap() {
-    while (marks.length > stampCap()) dropOldestStamp();
-  }
-  function onStampCapChange() {
-    trimStampsToCap();
-  }
-  stampCapQuery.addEventListener('change', onStampCapChange);
-  addEventListener('resize', onStampCapChange);
-
-  function refreshFiles() {
-    for (const ui of fileUis) {
-      const show = ui.rig.file === 'random' ? ui.lastPlaced : ui.rig.file;
-      ui.next.textContent = ui.rig.file === 'random'
-        ? 'Дальше: случайный'
-        : 'Дальше: ' + ui.rig.file;
-      for (const btn of ui.thumbs) btn.classList.toggle('on', !!show && btn.dataset.file === show);
-    }
-  }
-  refreshFiles();
-
-  function placeInk(current) {
-    if (current.placed || !current.src) return;
-    current.placed = true;
-    if (current.rig.stack === 'replace') {
-      for (let i = marks.length - 1; i >= 0; i--) {
-        if (marks[i].kind !== current.kind) continue;
-        releaseMark(marks.splice(i, 1)[0]);
-      }
-    }
-    while (marks.length >= stampCap()) dropOldestStamp();
-    const el = document.createElement('div');
-    el.className = 'sign-imprint';
-    const img = document.createElement('img');
-    img.className = 'ink';
-    img.alt = '';
-    img.draggable = false;
-    img.src = current.src;
-    const dye = document.createElement('div');
-    dye.className = 'dye';
-    dye.style.webkitMaskImage = `url("${current.src}")`;
-    dye.style.maskImage = `url("${current.src}")`;
-    el.append(img, dye);
-    layer.append(el);
-    marks.push({
-      el,
-      dye,
-      kind: current.kind,
-      rot: current.rot,
-      px: current.px,
-      py: current.py,
-      castHex: current.castHex,
-      custom: !!current.custom,
-    });
-    const ui = fileUis.find((item) => item.kind === current.kind);
-    if (ui) {
-      ui.lastPlaced = current.file;
-      ui.last.textContent = 'Поставлен: ' + current.file;
-    }
-    paintMarks();
-    dryMark(marks[marks.length - 1]);
-  }
-
-  function paintInkAt(dry, e) {
-    const { softness, headStart, initialDensity } = dry.effect;
-    const src = dry.src;
-    const order = dry.order;
-    const cw = dry.cw;
-    const ch = dry.ch;
-    const out = dry.out;
-    const n = cw * ch;
-    for (let i = 0; i < n; i++) {
-      const when = order[i];
-      const p = i * 4;
-      const u = Math.max(0, Math.min(1, (e - when) / softness + headStart));
-      const reveal = when > 2 ? 1 : u * u * (3 - 2 * u);
-      out[p] = src[p];
-      out[p + 1] = src[p + 1];
-      out[p + 2] = src[p + 2];
-      out[p + 3] = Math.round(src[p + 3] * (initialDensity + (1 - initialDensity) * reveal));
-    }
-    dry.bctx.putImageData(dry.frameData, 0, 0);
-    dry.vctx.clearRect(0, 0, cw, ch);
-    dry.vctx.drawImage(dry.buffer, 0, 0);
-  }
-
+  // After the hit, thick ink is already there. Thin edges and pale fringes
+  // finish a moment later, and a little blur dries off. Patches around the
+  // seal complete at different times, so the print looks drawn in, not faded.
   function dryMark(mark) {
-    if (!mark || !inkEffect.duration || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const effect = { ...inkEffect };
+    if (!mark || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const photo = mark.el.querySelector('img.ink');
     if (!photo) return;
     photo.style.visibility = 'hidden';
@@ -3363,7 +3242,7 @@ function mountSignStamp(host) {
       mark.dye.style.visibility = '';
     };
     const run = () => {
-      if (!mark.el.isConnected || mark.leaving || !photo.naturalWidth) {
+      if (!mark.el.isConnected || !photo.naturalWidth) {
         reveal();
         return;
       }
@@ -3371,7 +3250,7 @@ function mountSignStamp(host) {
       const dpr = Math.min(devicePixelRatio || 1, 2);
       let cw = Math.max(1, Math.round(cssW * dpr));
       let ch = Math.max(1, Math.round(cw * (photo.naturalHeight / photo.naturalWidth)));
-      const cap = effect.resolution;
+      const cap = 420;
       const longest = Math.max(cw, ch);
       if (longest > cap) {
         const fit = cap / longest;
@@ -3434,13 +3313,12 @@ function mountSignStamp(host) {
             continue;
           }
           const nx = x / cw;
-          const blot = Math.sin(nx * effect.textureFrequencyX + seed)
-            * Math.sin(ny * effect.textureFrequencyY + seed * 1.4);
+          const blot = Math.sin(nx * 9.2 + seed) * Math.sin(ny * 7.6 + seed * 1.4);
           const patch = blot * 0.5 + 0.5;
           const rings = dist[i];
           // 1px rim and hairlines finish last. The middle of a thick stroke is already down.
-          const late = rings <= 1 ? effect.hairlineDelay : rings === 2 ? effect.edgeDelay : effect.coreDelay;
-          order[i] = late + patch * effect.textureStrength;
+          const late = rings <= 1 ? 0.8 : rings === 2 ? 0.46 : 0.04;
+          order[i] = late + patch * 0.05;
         }
       }
       const view = document.createElement('canvas');
@@ -3452,20 +3330,24 @@ function mountSignStamp(host) {
       const frameData = bctx.createImageData(cw, ch);
       const out = frameData.data;
       const dry = {
-        src, order, cw, ch, buffer, bctx, frameData, out, vctx, effect,
+        src, order, cw, ch, cssW, buffer, bctx, frameData, out, view, vctx,
+        t: 0,
+        done: false,
+        stopForward: false,
       };
-      const lastDelay = Math.max(effect.hairlineDelay, effect.edgeDelay, effect.coreDelay);
-      const end = Math.max(1, lastDelay + effect.textureStrength + effect.softness * (1 - effect.headStart));
+      mark.inkDry = dry;
       const started = performance.now();
       const paint = (now) => {
-        if (!mark.el.isConnected || mark.leaving) return;
-        const t = Math.min(1, (now - started) / effect.duration);
-        if (t >= 1) {
+        if (!mark.el.isConnected || dry.stopForward) return;
+        const t = Math.min(1, (now - started) / INK_DRY_MS);
+        dry.t = t;
+        paintInkAt(dry, inkDryEase(t));
+        if (t < 1) requestAnimationFrame(paint);
+        else {
+          dry.t = 1;
+          dry.done = true;
           reveal();
-          return;
         }
-        paintInkAt(dry, end * (1 - (1 - t) ** effect.ease));
-        requestAnimationFrame(paint);
       };
       paint(started);
     };
@@ -3620,7 +3502,7 @@ function mountSignStamp(host) {
       mark.el.style.left = `calc(${mark.px * 100}% + ${rig.offsetX}px)`;
       mark.el.style.top = `calc(${mark.py * 100}% + ${rig.offsetY}px)`;
       mark.el.style.width = imgW + 'px';
-      mark.el.style.setProperty('--ink-opacity', String(rig.opacity));
+      mark.el.style.opacity = String(rig.opacity);
       mark.el.style.filter = rig.blur > 0.01 ? `blur(${rig.blur}px)` : 'none';
       const rot = mark.kind === 'apple'
         ? rig.pressY - mark.rot + appleImprintSpin
