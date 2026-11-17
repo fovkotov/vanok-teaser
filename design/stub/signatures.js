@@ -297,6 +297,7 @@
       '<div class="sig-swatches"></div>' +
       '<div class="sig-bar">' +
         '<button type="button" class="sig-upload"><span class="sig-upload-mark" aria-hidden="true"></span>Upload Image</button>' +
+        '<button type="button" class="sig-move" aria-pressed="false" hidden>Move image</button>' +
         '<button type="button" class="sig-create">Create Signature<span class="sig-create-mark" aria-hidden="true"></span></button>' +
         '<input class="sig-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">' +
       '</div>' +
@@ -382,6 +383,20 @@
   var shapes = modal.querySelector('.sig-shapes');
   var library = modal.querySelector('.sig-library');
   var input = modal.querySelector('.sig-input');
+  var moveButton = modal.querySelector('.sig-move');
+  var movingPhoto = false;
+
+  function syncPhotoMode() {
+    moveButton.hidden = !photos[kind];
+    moveButton.setAttribute('aria-pressed', String(movingPhoto));
+    moveButton.textContent = movingPhoto ? 'Done' : 'Move image';
+  }
+  moveButton.addEventListener('click', function () {
+    if (!photos[kind]) return;
+    leaveDraw();
+    movingPhoto = !movingPhoto;
+    syncPhotoMode();
+  });
   var grid = modal.querySelector('.sig-grid');
   var swatches = modal.querySelector('.sig-swatches');
 
@@ -689,6 +704,7 @@
     };
     tintPhoto(photo, selectedColor().hex);
     photos[name] = photo;
+    syncPhotoMode();
     redraw(name);
   }
   function reditherPhoto(name) {
@@ -959,6 +975,8 @@
     var nextKind = next === 'apple' ? 'apple' : 'stamp';
     if (nextKind !== kind) editing = false;
     kind = nextKind;
+    movingPhoto = false;
+    syncPhotoMode();
     modal.querySelectorAll('.sig-slide').forEach(function (slide) {
       slide.classList.toggle('is-on', slide.dataset.kind === kind);
     });
@@ -978,7 +996,7 @@
   });
 
   var swipe = null;
-  function rememberPointer(event) {
+  function rememberPointer(event, add) {
     for (var i = 0; i < photoPointers.length; i++) {
       if (photoPointers[i].id === event.pointerId) {
         photoPointers[i].x = event.clientX;
@@ -986,7 +1004,7 @@
         return;
       }
     }
-    photoPointers.push({ id: event.pointerId, x: event.clientX, y: event.clientY });
+    if (add) photoPointers.push({ id: event.pointerId, x: event.clientX, y: event.clientY });
   }
   function forgetPointer(id) {
     photoPointers = photoPointers.filter(function (pointer) { return pointer.id !== id; });
@@ -999,7 +1017,7 @@
       if (name !== kind) return;
       var point = pointOf(event, canvas, name);
       var hit = zone(name, point);
-      if (hit === 'text') {
+      if (hit === 'text' && !photoPointers.length) {
         if (event.pointerType !== 'mouse') {
           swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, name: name, point: point, hit: 'text', moved: false };
           beginEdit();
@@ -1010,7 +1028,11 @@
         beginEdit();
         return;
       }
-      rememberPointer(event);
+      if (event.pointerType === 'touch') {
+        if (photoPointers.length >= 2) return;
+        rememberPointer(event, true);
+      }
+      canvas.setPointerCapture(event.pointerId);
       if (photos[name] && photoPointers.length >= 2) {
         if (drawing) {
           strokes[name].pop();
@@ -1025,18 +1047,18 @@
           scale: photos[name].userScale,
           cx: photos[name].cx,
           cy: photos[name].cy,
-          mx: (a.x + b.x) / 2,
-          my: (a.y + b.y) / 2
+          anchor: pointOf({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 }, canvas, name)
         };
         swipe = { id: event.pointerId, name: name, hit: 'pinch', moved: true };
         event.preventDefault();
         return;
       }
+      if (photoPointers.length > 1) return;
+      if (movingPhoto && photos[name] && hit === 'draw') hit = 'photo';
       swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, name: name, point: point, hit: hit, moved: false };
       if (hit === 'draw') {
         drawing = { color: selectedColor().hex, points: [point] };
         strokes[name].push(drawing);
-        canvas.setPointerCapture(event.pointerId);
       }
       event.preventDefault();
     });
@@ -1048,14 +1070,11 @@
         var photo = photos[pinch.name];
         var dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
         var next = Math.max(0.35, Math.min(6, pinch.scale * dist / pinch.dist));
-        var seal = canvas.parentNode.querySelector('.sig-seal');
-        var rect = seal.getBoundingClientRect();
-        var vb = VB[pinch.name];
-        var mx = (a.x + b.x) / 2;
-        var my = (a.y + b.y) / 2;
+        var center = pointOf({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 }, canvas, pinch.name);
+        var ratio = next / pinch.scale;
         photo.userScale = next;
-        photo.cx = pinch.cx + (mx - pinch.mx) / Math.max(rect.width, 1) * vb.w;
-        photo.cy = pinch.cy + (my - pinch.my) / Math.max(rect.height, 1) * vb.h;
+        photo.cx = center.x + (pinch.cx - pinch.anchor.x) * ratio;
+        photo.cy = center.y + (pinch.cy - pinch.anchor.y) * ratio;
         redraw(pinch.name);
         event.preventDefault();
         return;
@@ -1065,6 +1084,14 @@
       var dy = event.clientY - swipe.y;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) swipe.moved = true;
       if (swipe.hit === 'text') return;
+      if (swipe.hit === 'photo' && photos[swipe.name]) {
+        var point = pointOf(event, canvas, swipe.name);
+        var moving = photos[swipe.name];
+        moving.cx += point.x - swipe.point.x;
+        moving.cy += point.y - swipe.point.y;
+        swipe.point = point;
+        redraw(swipe.name);
+      }
       if (drawing && swipe.hit === 'draw') {
         drawing.points.push(pointOf(event, canvas, swipe.name));
         redraw(swipe.name);
@@ -1072,7 +1099,9 @@
       event.preventDefault();
     });
     function finish(event) {
+      var wasPinching = !!pinch;
       forgetPointer(event.pointerId);
+      if (wasPinching && !pinch) swipe = null;
       if (!swipe || event.pointerId !== swipe.id) return;
       var was = swipe;
       if (was.hit === 'draw' && drawing && drawing.points.length < 2 && !was.moved) {
@@ -1085,6 +1114,7 @@
     }
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
+    canvas.addEventListener('lostpointercapture', finish);
     canvas.addEventListener('wheel', function (event) {
       var name = canvas.parentNode.dataset.kind;
       var photo = photos[name];
@@ -1675,11 +1705,12 @@
   fileInput.addEventListener('change', function () {
     var file = fileInput.files && fileInput.files[0];
     if (!file) return;
+    var photoKind = kind;
     var url = URL.createObjectURL(file);
     var img = new Image();
     img.onload = function () {
       URL.revokeObjectURL(url);
-      placePhoto(kind, img);
+      placePhoto(photoKind, img);
     };
     img.onerror = function () { URL.revokeObjectURL(url); };
     img.src = url;

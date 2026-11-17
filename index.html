@@ -1121,6 +1121,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     border-radius: 50%;
     background: #E9E9E9;
   }
+  .sig-move:not([hidden]),
   .sig-upload,
   .sig-create {
     display: flex;
@@ -1135,6 +1136,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     white-space: nowrap;
     cursor: pointer;
   }
+  .sig-move[aria-pressed="true"] { text-decoration: underline; }
   .sig-upload-mark,
   .sig-create-mark {
     width: 14px;
@@ -1609,7 +1611,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261117-apple-controls-smooth-print-095"></script>
+<script src="design/stub/signatures.js?v=20261117-photo-gestures"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
