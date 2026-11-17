@@ -1626,7 +1626,13 @@
     }
     var vectorScale = name === 'apple' ? appleEditorVectorScale : 1;
     var transform = vectorScale === 1 ? '' : ' transform="translate(' + (vb.w / 2) + ' ' + (vb.h / 2) + ') scale(' + vectorScale + ') translate(' + (-vb.w / 2) + ' ' + (-vb.h / 2) + ')"';
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + vb.w + ' ' + vb.h + '" width="539" height="539" preserveAspectRatio="none">' +
+    // Leave room for the scaled vector, including the apple stem and stroke.
+    var exportScale = Math.max(1, vectorScale);
+    var exportWidth = vb.w * exportScale;
+    var exportHeight = vb.h * exportScale;
+    var exportX = (vb.w - exportWidth) / 2;
+    var exportY = (vb.h - exportHeight) / 2;
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + exportX + ' ' + exportY + ' ' + exportWidth + ' ' + exportHeight + '" width="539" height="539" preserveAspectRatio="none">' +
       '<defs>' + clipMarkup(name) + '</defs>' +
       '<g' + transform + '>' + rings + '<g clip-path="url(#sig-ink-clip)">' + picture + strokeMarkup(name, hex) + '</g>' + letters + '</g></svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
