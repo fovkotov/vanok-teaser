@@ -3227,6 +3227,148 @@ function mountSignStamp(host) {
     return 1 - (1 - t) ** 2.15;
   }
 
+  function paintInkAt(dry, e) {
+    const src = dry.src;
+    const order = dry.order;
+    const cw = dry.cw;
+    const ch = dry.ch;
+    const out = dry.out;
+    const n = cw * ch;
+    for (let i = 0; i < n; i++) {
+      const when = order[i];
+      const p = i * 4;
+      let u = when > 2 ? 0 : (e - when) / 0.18 + 0.34;
+      if (u <= 0) {
+        out[p] = out[p + 1] = out[p + 2] = out[p + 3] = 0;
+        continue;
+      }
+      if (u > 1) u = 1;
+      else u = u * u * (3 - 2 * u);
+      out[p] = src[p];
+      out[p + 1] = src[p + 1];
+      out[p + 2] = src[p + 2];
+      out[p + 3] = Math.round(src[p + 3] * u);
+    }
+    dry.bctx.putImageData(dry.frameData, 0, 0);
+    dry.vctx.clearRect(0, 0, cw, ch);
+    const blur = (1 - e) * 0.45 * (cw / Math.max(dry.cssW, 1));
+    dry.vctx.filter = blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : 'none';
+    dry.vctx.drawImage(dry.buffer, 0, 0);
+    dry.vctx.filter = 'none';
+  }
+
+  // Exit rewinds the appear pass: ink-dry-settle (scale 1.028 → 1, 760ms,
+  // cubic-bezier(0.16, 0.64, 0.2, 1)) and the same ink ease 1-(1-t)**2.15.
+  function releaseMark(mark) {
+    if (!mark || !mark.el || mark.leaving) return;
+    mark.leaving = true;
+    const el = mark.el;
+    const finish = () => {
+      if (el.isConnected) el.remove();
+    };
+    const dry = mark.inkDry;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !dry || !dry.src || !dry.view) {
+      finish();
+      return;
+    }
+    dry.stopForward = true;
+    const fromT = dry.done ? 1 : Math.max(0, Math.min(1, dry.t || 0));
+    if (fromT <= 0.001) {
+      finish();
+      return;
+    }
+    const photo = el.querySelector('img.ink');
+    if (photo) photo.style.visibility = 'hidden';
+    if (mark.dye) mark.dye.style.visibility = 'hidden';
+    dry.view.style.animation = 'none';
+    if (!dry.view.isConnected) el.insertBefore(dry.view, el.firstChild);
+    el.classList.add('is-leaving');
+    const scale = dry.view.animate(
+      [{ transform: 'scale(1.028)' }, { transform: 'none' }],
+      { duration: INK_DRY_MS, easing: INK_DRY_EASE, fill: 'both', direction: 'reverse' }
+    );
+    if (fromT < 0.999) scale.currentTime = (1 - fromT) * INK_DRY_MS;
+    const started = performance.now();
+    const span = fromT * INK_DRY_MS;
+    const paint = (now) => {
+      if (!el.isConnected) return;
+      const u = Math.min(1, (now - started) / span);
+      paintInkAt(dry, inkDryEase(tFrom(u)));
+      if (u < 1) requestAnimationFrame(paint);
+      else finish();
+    };
+    function tFrom(u) {
+      return fromT * (1 - u);
+    }
+    paint(started);
+  }
+
+  function dropOldestStamp() {
+    const oldest = marks.shift();
+    if (oldest) releaseMark(oldest);
+  }
+  function trimStampsToCap() {
+    while (marks.length > stampCap()) dropOldestStamp();
+  }
+  function onStampCapChange() {
+    trimStampsToCap();
+  }
+  stampCapQuery.addEventListener('change', onStampCapChange);
+  addEventListener('resize', onStampCapChange);
+
+  function refreshFiles() {
+    for (const ui of fileUis) {
+      const show = ui.rig.file === 'random' ? ui.lastPlaced : ui.rig.file;
+      ui.next.textContent = ui.rig.file === 'random'
+        ? 'Дальше: случайный'
+        : 'Дальше: ' + ui.rig.file;
+      for (const btn of ui.thumbs) btn.classList.toggle('on', !!show && btn.dataset.file === show);
+    }
+  }
+  refreshFiles();
+
+  function placeInk(current) {
+    if (current.placed || !current.src) return;
+    current.placed = true;
+    if (current.rig.stack === 'replace') {
+      for (let i = marks.length - 1; i >= 0; i--) {
+        if (marks[i].kind !== current.kind) continue;
+        releaseMark(marks.splice(i, 1)[0]);
+      }
+    }
+    while (marks.length >= stampCap()) dropOldestStamp();
+    const el = document.createElement('div');
+    el.className = 'sign-imprint';
+    const img = document.createElement('img');
+    img.className = 'ink';
+    img.alt = '';
+    img.draggable = false;
+    img.src = current.src;
+    const dye = document.createElement('div');
+    dye.className = 'dye';
+    dye.style.webkitMaskImage = `url("${current.src}")`;
+    dye.style.maskImage = `url("${current.src}")`;
+    el.append(img, dye);
+    layer.append(el);
+    marks.push({
+      el,
+      dye,
+      kind: current.kind,
+      rot: current.rot,
+      px: current.px,
+      py: current.py,
+      castHex: current.castHex,
+      custom: !!current.custom,
+    });
+    const ui = fileUis.find((item) => item.kind === current.kind);
+    if (ui) {
+      ui.lastPlaced = current.file;
+      ui.last.textContent = 'Поставлен: ' + current.file;
+    }
+    paintMarks();
+    dryMark(marks[marks.length - 1]);
+  }
+
   // After the hit, thick ink is already there. Thin edges and pale fringes
   // finish a moment later, and a little blur dries off. Patches around the
   // seal complete at different times, so the print looks drawn in, not faded.
