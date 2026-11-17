@@ -297,7 +297,6 @@
       '<div class="sig-swatches"></div>' +
       '<div class="sig-bar">' +
         '<button type="button" class="sig-upload"><span class="sig-upload-mark" aria-hidden="true"></span>Upload Image</button>' +
-        '<button type="button" class="sig-move" aria-pressed="false" hidden>Move image</button>' +
         '<button type="button" class="sig-create">Create Signature<span class="sig-create-mark" aria-hidden="true"></span></button>' +
         '<input class="sig-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">' +
       '</div>' +
@@ -383,20 +382,6 @@
   var shapes = modal.querySelector('.sig-shapes');
   var library = modal.querySelector('.sig-library');
   var input = modal.querySelector('.sig-input');
-  var moveButton = modal.querySelector('.sig-move');
-  var movingPhoto = false;
-
-  function syncPhotoMode() {
-    moveButton.hidden = !photos[kind];
-    moveButton.setAttribute('aria-pressed', String(movingPhoto));
-    moveButton.textContent = movingPhoto ? 'Done' : 'Move image';
-  }
-  moveButton.addEventListener('click', function () {
-    if (!photos[kind]) return;
-    leaveDraw();
-    movingPhoto = !movingPhoto;
-    syncPhotoMode();
-  });
   var grid = modal.querySelector('.sig-grid');
   var swatches = modal.querySelector('.sig-swatches');
 
@@ -704,7 +689,6 @@
     };
     tintPhoto(photo, selectedColor().hex);
     photos[name] = photo;
-    syncPhotoMode();
     redraw(name);
   }
   function reditherPhoto(name) {
@@ -975,8 +959,6 @@
     var nextKind = next === 'apple' ? 'apple' : 'stamp';
     if (nextKind !== kind) editing = false;
     kind = nextKind;
-    movingPhoto = false;
-    syncPhotoMode();
     modal.querySelectorAll('.sig-slide').forEach(function (slide) {
       slide.classList.toggle('is-on', slide.dataset.kind === kind);
     });
@@ -1054,7 +1036,6 @@
         return;
       }
       if (photoPointers.length > 1) return;
-      if (movingPhoto && photos[name] && hit === 'draw') hit = 'photo';
       swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, name: name, point: point, hit: hit, moved: false };
       if (hit === 'draw') {
         drawing = { color: selectedColor().hex, points: [point] };
@@ -1084,14 +1065,6 @@
       var dy = event.clientY - swipe.y;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) swipe.moved = true;
       if (swipe.hit === 'text') return;
-      if (swipe.hit === 'photo' && photos[swipe.name]) {
-        var point = pointOf(event, canvas, swipe.name);
-        var moving = photos[swipe.name];
-        moving.cx += point.x - swipe.point.x;
-        moving.cy += point.y - swipe.point.y;
-        swipe.point = point;
-        redraw(swipe.name);
-      }
       if (drawing && swipe.hit === 'draw') {
         drawing.points.push(pointOf(event, canvas, swipe.name));
         redraw(swipe.name);
