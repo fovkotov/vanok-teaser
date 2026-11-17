@@ -506,19 +506,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     -webkit-mask-size: 100% 100%;
     mask-size: 100% 100%;
   }
-  /* Wet ink settles onto the sharp print. The bitmap reveal lives in JS. */
-  .sign-imprint .ink-dry {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    transform-origin: center center;
-    animation: ink-dry-settle 760ms cubic-bezier(0.16, 0.64, 0.2, 1) both;
-  }
-  @keyframes ink-dry-settle {
-    from { transform: scale(1.028); }
-    to { transform: none; }
-  }
   .stamp-panel {
     position: fixed;
     z-index: 100;
@@ -3256,87 +3243,10 @@ function mountSignStamp(host) {
   function stampCap() {
     return stampCapQuery.matches ? 6 : 20;
   }
-  const INK_DRY_MS = 760;
-  const INK_DRY_EASE = 'cubic-bezier(0.16, 0.64, 0.2, 1)';
-
-  function inkDryEase(t) {
-    return 1 - (1 - t) ** 2.15;
-  }
-
-  function paintInkAt(dry, e) {
-    const src = dry.src;
-    const order = dry.order;
-    const cw = dry.cw;
-    const ch = dry.ch;
-    const out = dry.out;
-    const n = cw * ch;
-    for (let i = 0; i < n; i++) {
-      const when = order[i];
-      const p = i * 4;
-      let u = when > 2 ? 0 : (e - when) / 0.18 + 0.34;
-      if (u <= 0) {
-        out[p] = out[p + 1] = out[p + 2] = out[p + 3] = 0;
-        continue;
-      }
-      if (u > 1) u = 1;
-      else u = u * u * (3 - 2 * u);
-      out[p] = src[p];
-      out[p + 1] = src[p + 1];
-      out[p + 2] = src[p + 2];
-      out[p + 3] = Math.round(src[p + 3] * u);
-    }
-    dry.bctx.putImageData(dry.frameData, 0, 0);
-    dry.vctx.clearRect(0, 0, cw, ch);
-    const blur = (1 - e) * 0.45 * (cw / Math.max(dry.cssW, 1));
-    dry.vctx.filter = blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : 'none';
-    dry.vctx.drawImage(dry.buffer, 0, 0);
-    dry.vctx.filter = 'none';
-  }
-
-  // Exit rewinds the appear pass: ink-dry-settle (scale 1.028 → 1, 760ms,
-  // cubic-bezier(0.16, 0.64, 0.2, 1)) and the same ink ease 1-(1-t)**2.15.
   function releaseMark(mark) {
     if (!mark || !mark.el || mark.leaving) return;
     mark.leaving = true;
-    const el = mark.el;
-    const finish = () => {
-      if (el.isConnected) el.remove();
-    };
-    const dry = mark.inkDry;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !dry || !dry.src || !dry.view) {
-      finish();
-      return;
-    }
-    dry.stopForward = true;
-    const fromT = dry.done ? 1 : Math.max(0, Math.min(1, dry.t || 0));
-    if (fromT <= 0.001) {
-      finish();
-      return;
-    }
-    const photo = el.querySelector('img.ink');
-    if (photo) photo.style.visibility = 'hidden';
-    if (mark.dye) mark.dye.style.visibility = 'hidden';
-    dry.view.style.animation = 'none';
-    if (!dry.view.isConnected) el.insertBefore(dry.view, el.firstChild);
-    el.classList.add('is-leaving');
-    const scale = dry.view.animate(
-      [{ transform: 'scale(1.028)' }, { transform: 'none' }],
-      { duration: INK_DRY_MS, easing: INK_DRY_EASE, fill: 'both', direction: 'reverse' }
-    );
-    if (fromT < 0.999) scale.currentTime = (1 - fromT) * INK_DRY_MS;
-    const started = performance.now();
-    const span = fromT * INK_DRY_MS;
-    const paint = (now) => {
-      if (!el.isConnected) return;
-      const u = Math.min(1, (now - started) / span);
-      paintInkAt(dry, inkDryEase(tFrom(u)));
-      if (u < 1) requestAnimationFrame(paint);
-      else finish();
-    };
-    function tFrom(u) {
-      return fromT * (1 - u);
-    }
-    paint(started);
+    mark.el.remove();
   }
 
   function dropOldestStamp() {
@@ -3410,141 +3320,8 @@ function mountSignStamp(host) {
       ui.last.textContent = 'Поставлен: ' + current.file;
     }
     paintMarks();
-    dryMark(marks[marks.length - 1]);
   }
 
-  // After the hit, thick ink is already there. Thin edges and pale fringes
-  // finish a moment later, and a little blur dries off. Patches around the
-  // seal complete at different times, so the print looks drawn in, not faded.
-  function dryMark(mark) {
-    if (!mark || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const photo = mark.el.querySelector('img.ink');
-    if (!photo) return;
-    photo.style.visibility = 'hidden';
-    mark.dye.style.visibility = 'hidden';
-    const reveal = () => {
-      if (!mark.el.isConnected) return;
-      const wet = mark.el.querySelector('.ink-dry');
-      if (wet) wet.remove();
-      photo.style.visibility = '';
-      mark.dye.style.visibility = '';
-    };
-    const run = () => {
-      if (!mark.el.isConnected || !photo.naturalWidth) {
-        reveal();
-        return;
-      }
-      const cssW = mark.el.offsetWidth || 220;
-      const dpr = Math.min(devicePixelRatio || 1, 2);
-      let cw = Math.max(1, Math.round(cssW * dpr));
-      let ch = Math.max(1, Math.round(cw * (photo.naturalHeight / photo.naturalWidth)));
-      const cap = matchMedia('(max-width: 440px)').matches ? 192 : 420;
-      const longest = Math.max(cw, ch);
-      if (longest > cap) {
-        const fit = cap / longest;
-        cw = Math.max(1, Math.round(cw * fit));
-        ch = Math.max(1, Math.round(ch * fit));
-      }
-      const buffer = document.createElement('canvas');
-      buffer.width = cw;
-      buffer.height = ch;
-      const bctx = buffer.getContext('2d');
-      try {
-        bctx.drawImage(photo, 0, 0, cw, ch);
-        bctx.getImageData(0, 0, 1, 1);
-      } catch (err) {
-        reveal();
-        return;
-      }
-      const rig = mark.kind === 'apple' ? appleRig : stampRig;
-      const themed = themeHex(mark.castHex);
-      const tintAlpha = themed != null ? 1 : rig.tintAmount;
-      if (tintAlpha > 0.01) {
-        bctx.save();
-        bctx.globalCompositeOperation = 'source-atop';
-        bctx.globalAlpha = tintAlpha;
-        bctx.fillStyle = themed != null
-          ? '#' + themed.toString(16).padStart(6, '0')
-          : rig.tint;
-        bctx.fillRect(0, 0, cw, ch);
-        bctx.restore();
-      }
-      const src = bctx.getImageData(0, 0, cw, ch).data;
-      const n = cw * ch;
-      const dist = new Float32Array(n);
-      const far = 1e6;
-      for (let i = 0; i < n; i++) {
-        if (src[i * 4 + 3] < 12) {
-          dist[i] = 0;
-          continue;
-        }
-        let d = far;
-        if (i % cw) d = Math.min(d, dist[i - 1] + 1);
-        if (i >= cw) d = Math.min(d, dist[i - cw] + 1);
-        dist[i] = d;
-      }
-      for (let i = n - 1; i >= 0; i--) {
-        if (!dist[i]) continue;
-        let d = dist[i];
-        if (i % cw !== cw - 1) d = Math.min(d, dist[i + 1] + 1);
-        if (i + cw < n) d = Math.min(d, dist[i + cw] + 1);
-        dist[i] = d;
-      }
-      const order = new Float32Array(n);
-      const seed = Math.random() * Math.PI * 2;
-      for (let y = 0; y < ch; y++) {
-        const ny = y / ch;
-        for (let x = 0; x < cw; x++) {
-          const i = y * cw + x;
-          if (src[i * 4 + 3] < 12) {
-            order[i] = 9;
-            continue;
-          }
-          const nx = x / cw;
-          const blot = Math.sin(nx * 9.2 + seed) * Math.sin(ny * 7.6 + seed * 1.4);
-          const patch = blot * 0.5 + 0.5;
-          const rings = dist[i];
-          // 1px rim and hairlines finish last. The middle of a thick stroke is already down.
-          const late = rings <= 1 ? 0.8 : rings === 2 ? 0.46 : 0.04;
-          order[i] = late + patch * 0.05;
-        }
-      }
-      const view = document.createElement('canvas');
-      view.className = 'ink-dry';
-      view.width = cw;
-      view.height = ch;
-      const vctx = view.getContext('2d');
-      mark.el.insertBefore(view, mark.el.firstChild);
-      const frameData = bctx.createImageData(cw, ch);
-      const out = frameData.data;
-      const dry = {
-        src, order, cw, ch, cssW, buffer, bctx, frameData, out, view, vctx,
-        t: 0,
-        done: false,
-        stopForward: false,
-      };
-      mark.inkDry = dry;
-      const started = performance.now();
-      const paint = (now) => {
-        if (!mark.el.isConnected || dry.stopForward) return;
-        const t = Math.min(1, (now - started) / INK_DRY_MS);
-        dry.t = t;
-        paintInkAt(dry, inkDryEase(t));
-        if (t < 1) requestAnimationFrame(paint);
-        else {
-          dry.t = 1;
-          dry.done = true;
-          reveal();
-        }
-      };
-      paint(started);
-    };
-    if (photo.complete && photo.naturalWidth) run();
-    else {
-      photo.addEventListener('load', run, { once: true });
-      photo.addEventListener('error', reveal, { once: true });
-    }
-  }
   const colorDeck = [];
   let lastColor = '';
   function drawColor() {
