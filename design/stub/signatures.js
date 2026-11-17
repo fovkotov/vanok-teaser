@@ -102,6 +102,8 @@
   // the circle's outer ring is 325.35 inside 326. This scale makes those outer
   // widths match. It does not change export viewBoxes or placed-stamp ink fractions.
   var APPLE_PREVIEW_SCALE = (325.349651 / 326) / (383.541548 / 500);
+  var APPLE_EDITOR_SCALE = APPLE_PREVIEW_SCALE * 0.95 * 0.91 * 0.8;
+  var APPLE_EDITOR_TEXT_SCALE = APPLE_PREVIEW_SCALE * 0.91 * 0.8;
 
   // Ink stays inside the bold outer contour. The path is a clip only.
   var INK_CLIP = {
@@ -317,11 +319,46 @@
     '</div>';
   document.body.appendChild(modal);
   var applePreview = document.createElement('style');
-  applePreview.textContent =
-    '.sig-slide[data-kind="apple"] .sig-seal{transform:translate(-50%,-50%) scale(' + APPLE_PREVIEW_SCALE + ')}' +
-    '.sig-slide[data-kind="apple"] text{font-size:' + (13 * (VB.apple.w / 326) / APPLE_PREVIEW_SCALE) + 'px;-webkit-text-size-adjust:100%;text-size-adjust:100%}' +
-    '.sig-shape[data-kind="apple"] .sig-shape-art{transform:scale(' + APPLE_PREVIEW_SCALE + ');transform-origin:center}';
+  var appleEditorVectorScale = 1.27;
+  var editorFontScale = 1.01;
+  var editorTextPathScale = 0.95;
+  function paintApplePreviewScale() {
+    applePreview.textContent =
+      '.sig-slide[data-kind="apple"] .sig-seal{transform:translate(-50%,-50%) scale(' + (APPLE_EDITOR_SCALE * appleEditorVectorScale) + ')}' +
+      '.sig-slide[data-kind="apple"] text{font-size:' + (13 * (VB.apple.w / 326) / APPLE_EDITOR_TEXT_SCALE * editorFontScale) + 'px;-webkit-text-size-adjust:100%;text-size-adjust:100%}' +
+      '.sig-shape[data-kind="apple"] .sig-shape-art{transform:scale(' + APPLE_PREVIEW_SCALE + ');transform-origin:center}';
+  }
+  paintApplePreviewScale();
   document.head.appendChild(applePreview);
+  store.setEditorVectorScale = function (value) {
+    var scale = Number(value);
+    if (!isFinite(scale)) return appleEditorVectorScale;
+    appleEditorVectorScale = Math.max(0.4, Math.min(1.8, scale));
+    paintApplePreviewScale();
+    return appleEditorVectorScale;
+  };
+  store.setEditorFontScale = function (value) {
+    var scale = Number(value);
+    if (!isFinite(scale)) return editorFontScale;
+    editorFontScale = Math.max(0.5, Math.min(2.5, scale));
+    paintApplePreviewScale();
+    refitAppleText();
+    return editorFontScale;
+  };
+  store.setEditorTextPathScale = function (value) {
+    var scale = Number(value);
+    if (!isFinite(scale)) return editorTextPathScale;
+    editorTextPathScale = Math.max(0.5, Math.min(2, scale));
+    refitAppleText();
+    return editorTextPathScale;
+  };
+  store.getEditorControls = function () {
+    return {
+      vectorScale: appleEditorVectorScale,
+      fontScale: editorFontScale,
+      textPathScale: editorTextPathScale
+    };
+  };
 
   function slideMarkup(name, src, viewBox, path, offset) {
     var mask = 'url(' + src + ') center / 100% 100% no-repeat';
@@ -546,20 +583,21 @@
       void appleSlide.offsetWidth;
       var stampH = paintedLetterHeight(stampSlide);
       var appleH = paintedLetterHeight(appleSlide);
+      var targetH = stampH * editorFontScale;
       var guard = 0;
-      while (stampH > 0.5 && appleH > 0.5 && Math.abs(stampH - appleH) / stampH > 0.02 && guard < 4) {
+      while (targetH > 0.5 && appleH > 0.5 && Math.abs(targetH - appleH) / targetH > 0.02 && guard < 4) {
         guard += 1;
         var probe = appleSlide.querySelector('.sig-probe');
         var current = parseFloat(window.getComputedStyle(probe).fontSize) || 0;
         if (!(current > 0)) break;
-        var next = current * (stampH / appleH);
+        var next = current * (targetH / appleH);
         for (var n = 0; n < nodes.length; n++) nodes[n].style.fontSize = next + 'px';
         void appleSlide.offsetWidth;
         var again = paintedLetterHeight(appleSlide);
         if (!(again > 0.5) || Math.abs(again - appleH) < 0.25) break;
         appleH = again;
       }
-      result = { stampH: stampH, appleH: appleH };
+      result = { stampH: stampH, appleH: appleH, targetH: targetH };
     } finally {
       hidden.forEach(function (slide) { slide.style.display = ''; });
     }
@@ -808,7 +846,7 @@
     if (!svg || !svg.clientWidth) return 0;
     // One line at the 326-wide seal, in viewBox units. A live pixel inset
     // would stay put while the shape grows with the screen.
-    return 13 * VB.apple.w / 326;
+    return 13 * editorFontScale * VB.apple.w / 326;
   }
   function refitAppleText() {
     var path = document.getElementById('sig-path-apple');
@@ -850,6 +888,16 @@
       });
     }
     out = dropOffsetLoops(out);
+    if (editorTextPathScale !== 1) {
+      var pathCx = VB.apple.w / 2;
+      var pathCy = VB.apple.h / 2;
+      out = out.map(function (point) {
+        return {
+          x: pathCx + (point.x - pathCx) * editorTextPathScale,
+          y: pathCy + (point.y - pathCy) * editorTextPathScale
+        };
+      });
+    }
     // Text starts on the upper-left of the top arc. The contour used to end
     // back at the bottom, so a long string piled up there and never climbed
     // the left side. Spin the loop so that start is index 0, then trace it
@@ -1554,7 +1602,7 @@
       var path = document.getElementById('sig-path-' + name);
       var offset = path.parentNode.querySelector('textPath').getAttribute('startOffset') || '0';
       letters = '<path id="sig-export-path" d="' + xmlEscape(path.getAttribute('d')) + '" fill="none"/>' +
-        '<text fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="' + (name === 'apple' ? 13 / APPLE_PREVIEW_SCALE * (VB.apple.w / 326) : 13) + '">' +
+        '<text fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="' + (name === 'apple' ? 13 / APPLE_PREVIEW_SCALE * (VB.apple.w / 326) * editorFontScale : 13) + '">' +
         '<textPath href="#sig-export-path" startOffset="' + xmlEscape(offset) + '">' + xmlEscape(value) + '</textPath></text>';
     }
     var picture = '';
@@ -1570,9 +1618,11 @@
       shotCtx.restore();
       picture = '<image href="' + shot.toDataURL('image/webp', 0.9) + '" x="0" y="0" width="' + vb.w + '" height="' + vb.h + '"/>';
     }
+    var vectorScale = name === 'apple' ? appleEditorVectorScale : 1;
+    var transform = vectorScale === 1 ? '' : ' transform="translate(' + (vb.w / 2) + ' ' + (vb.h / 2) + ') scale(' + vectorScale + ') translate(' + (-vb.w / 2) + ' ' + (-vb.h / 2) + ')"';
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + vb.w + ' ' + vb.h + '" width="539" height="539" preserveAspectRatio="none">' +
       '<defs>' + clipMarkup(name) + '</defs>' +
-      rings + '<g clip-path="url(#sig-ink-clip)">' + picture + strokeMarkup(name, hex) + '</g>' + letters + '</svg>';
+      '<g' + transform + '>' + rings + '<g clip-path="url(#sig-ink-clip)">' + picture + strokeMarkup(name, hex) + '</g>' + letters + '</g></svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
