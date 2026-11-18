@@ -2507,8 +2507,9 @@ function planeSources(kind) {
 }
 
 function queuePlanePrints() {
-  const srcs = planeSources('stamp').concat(planeSources('apple'));
-  for (let i = 0; i < srcs.length; i++) queueChromeSample(srcs[i]);
+  // A representative color is enough until a specific imprint is selected.
+  queueChromeSample(planeSources('stamp')[0]);
+  queueChromeSample(planeSources('apple')[0]);
 }
 
 function planePoolHex(kind) {
