@@ -1359,6 +1359,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .sig-grid .sig-card:not(.sig-add) { cursor: pointer; }
   .sig-card img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .sig-card.is-loading {
+    background: radial-gradient(circle, currentColor 0 18%, transparent 19%) center / 12px 12px no-repeat;
+    color: color-mix(in srgb, var(--blue) 15%, transparent);
+  }
   .sig-card[data-expanded-export] img {
     transform: scale(var(--sig-library-mobile-scale, 1));
     transform-origin: center;
@@ -1606,7 +1610,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261118-apple-library-scale"></script>
+<script src="design/stub/signatures.js?v=20261118-progressive-images"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -2758,10 +2762,12 @@ function mountSignStamp(host) {
         settled = true;
         clearTimeout(timeout);
         entry.ready = ready;
+        entry.failed = !ready;
         entry.image = ready ? image : null;
         entry.resolve(entry.image);
         inkDownloads -= 1;
         loadNextInk();
+        if (!ready) fillInkReserve();
       };
       image.onload = () => {
         image.decode().then(() => finish(true), () => finish(image.naturalWidth > 0));
@@ -2770,11 +2776,30 @@ function mountSignStamp(host) {
       image.src = src;
     }
   }
+  let inkReserve = [];
+  let inkCatalogKey = '';
+  function fillInkReserve() {
+    const unused = [...inkImages.values()].filter((entry) => !entry.used && !entry.failed).length;
+    let available = unused;
+    while (available < 6 && inkReserve.length) {
+      prepareInk(inkReserve.pop());
+      available += 1;
+    }
+  }
   function prepareCatalogInk() {
     const catalog = window.VanokSignatures?.catalog() || [];
-    for (const item of [...STAMP_IMPRINTS, ...APPLE_IMPRINTS, ...catalog]) {
-      if (item?.src) prepareInk(item.src);
+    const sources = [...new Set([...STAMP_IMPRINTS, ...APPLE_IMPRINTS, ...catalog].map((item) => item.src).filter(Boolean))];
+    const key = sources.join('|');
+    if (key === inkCatalogKey) return;
+    inkCatalogKey = key;
+    inkReserve = sources.filter((src) => !inkImages.has(src));
+    for (let i = inkReserve.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [inkReserve[i], inkReserve[j]] = [inkReserve[j], inkReserve[i]];
     }
+    // Two local fallbacks are ready before the first stamping gesture.
+    for (const item of [...STAMP_IMPRINTS, ...APPLE_IMPRINTS]) prepareInk(item.src);
+    fillInkReserve();
   }
   document.addEventListener('vanok-catalog', prepareCatalogInk);
   prepareCatalogInk();
@@ -2944,6 +2969,8 @@ function mountSignStamp(host) {
       btn.title = item.file;
       const img = document.createElement('img');
       img.alt = item.file;
+      img.loading = 'lazy';
+      img.decoding = 'async';
       img.src = item.src;
       btn.append(img);
       btn.addEventListener('click', () => {
@@ -3307,6 +3334,8 @@ function mountSignStamp(host) {
       return;
     }
     current.placed = true;
+    prepared.used = true;
+    fillInkReserve();
     if (current.rig.stack === 'replace') {
       for (let i = marks.length - 1; i >= 0; i--) {
         if (marks[i].kind !== current.kind) continue;
@@ -3708,11 +3737,11 @@ function mountSignStamp(host) {
     if (!store || typeof store.catalog !== 'function') return null;
     const list = (store.catalog() || []).filter((item) => {
       return item && item.src && (item.kind === 'stamp' || item.kind === 'apple')
-        && prepareInk(item.src).ready;
+        && inkImages.get(item.src)?.ready;
     });
     if (!list.length) {
       const presets = (store.catalog() || []).filter((item) => item.preset && item.src);
-      return presets.find((item) => prepareInk(item.src).ready) || null;
+      return presets.find((item) => inkImages.get(item.src)?.ready) || null;
     }
     const key = list.map((item) => item.id).join('|');
     if (!catalogBag.length || catalogKey !== key) {

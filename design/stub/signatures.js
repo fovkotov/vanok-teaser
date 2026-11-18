@@ -1449,9 +1449,41 @@
     else closeModal();
   }, true);
 
+  var cardImageQueue = [];
+  var cardImageLoads = 0;
+  function loadCardImages() {
+    while (cardImageLoads < 3 && cardImageQueue.length) {
+      var img = cardImageQueue.shift();
+      if (!img.isConnected) continue;
+      cardImageLoads += 1;
+      img.onload = function () {
+        this.parentNode.classList.remove('is-loading');
+        this.parentNode.removeAttribute('aria-busy');
+        cardImageLoads -= 1;
+        loadCardImages();
+      };
+      img.onerror = function () {
+        this.parentNode.classList.remove('is-loading');
+        this.parentNode.removeAttribute('aria-busy');
+        cardImageLoads -= 1;
+        loadCardImages();
+      };
+      img.src = img.dataset.src;
+    }
+  }
+  var cardImageObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      cardImageObserver.unobserve(entry.target);
+      cardImageQueue.push(entry.target);
+    });
+    loadCardImages();
+  }, { root: grid, rootMargin: '200px 0px' });
+
   function cardNode(item) {
     var card = document.createElement('div');
-    card.className = 'sig-card';
+    card.className = 'sig-card is-loading';
+    card.setAttribute('aria-busy', 'true');
     card.dataset.id = item.id;
     if (item.kind === 'apple' && !item.preset && Number(item.createdAt) >= 1794955554000) {
       card.setAttribute('data-expanded-export', '');
@@ -1460,8 +1492,8 @@
     img.alt = '';
     img.draggable = false;
     img.decoding = 'async';
-    img.loading = 'lazy';
-    img.src = item.src;
+    img.crossOrigin = 'anonymous';
+    img.dataset.src = item.src;
     card.appendChild(img);
     if (pending && pending.id === item.id) card.classList.add('is-armed');
     return card;
@@ -1487,7 +1519,10 @@
     var list = catalog();
     document.dispatchEvent(new Event('vanok-catalog'));
     var nodes = [addCard()].concat(list.map(cardNode));
+    cardImageObserver.disconnect();
+    cardImageQueue = [];
     grid.replaceChildren.apply(grid, nodes);
+    grid.querySelectorAll('img[data-src]').forEach(function (img) { cardImageObserver.observe(img); });
     if (!freshId || !from || from.width < 1) return;
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
