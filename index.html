@@ -1577,18 +1577,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .sig-photo-orbit button[data-handle="top"] { top: 0; }
   .sig-photo-orbit button[data-handle="bottom"] { top: 100%; }
+  .sig-photo-orbit button[data-handle="left"] { left: 0; top: 50%; }
+  .sig-photo-orbit button[data-handle="right"] { left: 100%; top: 50%; }
   .sig-editor[data-mode="image"] .sig-stage { cursor: move; }
   @media (max-width: 440px) {
     .sig-editor-head { width: calc(100% - 18px); }
+    .sig-editor[data-mode="text"] .sig-text-done { display: none; }
     .sig-editor .sig-swatches { top: calc(50% + 163 * var(--sig-k) + 32px); }
     .sig-editor[data-mode="text"] .sig-seal {
-      --text-seal: min(calc(326 * var(--sig-k)), calc(var(--vvh, 100dvh) - 190px));
       top: calc(var(--vv-top, 0px) + (var(--vvh, 100dvh) - 100px) / 2);
-      width: var(--text-seal);
-      height: var(--text-seal);
+      width: var(--text-seal-width);
+      height: var(--text-seal-height);
     }
     .sig-editor[data-mode="text"] .sig-swatches {
-      top: calc(var(--vv-top, 0px) + (var(--vvh, 100dvh) - 100px) / 2 + min(calc(163 * var(--sig-k)), (var(--vvh, 100dvh) - 190px) / 2) + 28px);
+      top: calc(var(--vv-top, 0px) + (var(--vvh, 100dvh) - 100px) / 2 + (var(--text-seal-height) / 2) + 28px);
     }
   }
 
@@ -1750,7 +1752,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261118-editor-modes"></script>
+<script src="design/stub/signatures.js?v=20261118-keyboard-rotate"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",

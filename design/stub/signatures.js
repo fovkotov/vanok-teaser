@@ -304,7 +304,7 @@
         '<button type="button" class="sig-tool sig-redo" aria-label="Redo" disabled><img src="design/stub/editor/redo.svg" alt=""></button>' +
       '</div>' +
       '<button type="button" class="sig-text-done">Done</button>' +
-      '<div class="sig-photo-orbit" hidden><button type="button" data-handle="top" aria-label="Resize image from top"><img src="design/stub/editor/handle.svg" alt=""></button><button type="button" data-handle="bottom" aria-label="Resize image from bottom"><img src="design/stub/editor/handle.svg" alt=""></button></div>' +
+      '<div class="sig-photo-orbit" hidden><button type="button" data-handle="top" aria-label="Resize and rotate image from top"><img src="design/stub/editor/handle.svg" alt=""></button><button type="button" data-handle="bottom" aria-label="Resize and rotate image from bottom"><img src="design/stub/editor/handle.svg" alt=""></button><button type="button" data-handle="left" aria-label="Resize and rotate image from left"><img src="design/stub/editor/handle.svg" alt=""></button><button type="button" data-handle="right" aria-label="Resize and rotate image from right"><img src="design/stub/editor/handle.svg" alt=""></button></div>' +
       '<input class="sig-file" type="file" accept="image/*" tabindex="-1" aria-hidden="true">' +
       '<input id="sig-input" class="sig-input" type="text" maxlength="160" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="Signature text">' +
     '</div>' +
@@ -477,6 +477,9 @@
   function beginTextMode() {
     if (editorMode !== 'draw') commitMode();
     modeSnapshot = captureEditor();
+    var seal = editor.querySelector('.sig-slide.is-on .sig-seal');
+    editor.style.setProperty('--text-seal-width', seal.offsetWidth + 'px');
+    editor.style.setProperty('--text-seal-height', seal.offsetHeight + 'px');
     setEditorMode('text');
     beginEdit();
   }
@@ -496,6 +499,7 @@
     orbit.style.top = rect.top - hostRect.top + photo.cy * unitY + 'px';
     orbit.style.width = width + 'px';
     orbit.style.height = height + 'px';
+    orbit.style.transform = 'translate(-50%, -50%) rotate(' + (photo.rotation || 0) + 'rad)';
   }
   editor.querySelector('.sig-draw').addEventListener('click', function () {
     if (editorMode !== 'draw') commitMode();
@@ -726,7 +730,7 @@
     editing = true;
     dismissEdit = false;
     if (entering) {
-      editingLock = true;
+      editingLock = !window.matchMedia('(max-width: 440px)').matches;
       var next = texts[kind] || '';
       if (input.value !== next) input.value = next;
       clearTimeout(beginEdit.timer);
@@ -803,6 +807,7 @@
       w: dithered.w,
       h: dithered.h,
       userScale: 1,
+      rotation: 0,
       cx: vb.w / 2,
       cy: vb.h / 2,
       fit: (name === 'apple' ? 360 : 318) / dithered.w
@@ -851,7 +856,11 @@
     if (!photo || !photo.tinted) return;
     var dw = photo.w * photo.fit * photo.userScale;
     var dh = photo.h * photo.fit * photo.userScale;
-    ctx.drawImage(photo.tinted, photo.cx - dw / 2, photo.cy - dh / 2, dw, dh);
+    ctx.save();
+    ctx.translate(photo.cx, photo.cy);
+    ctx.rotate(photo.rotation || 0);
+    ctx.drawImage(photo.tinted, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
   }
   function applyInk() {
     var hex = selectedColor().hex;
@@ -1234,6 +1243,8 @@
       var rect = orbit.getBoundingClientRect();
       resizingPhoto = {
         id: event.pointerId, scale: photos[kind].userScale,
+        rotation: photos[kind].rotation || 0,
+        angle: Math.atan2(event.clientY - rect.top - rect.height / 2, event.clientX - rect.left - rect.width / 2),
         x: rect.left + rect.width / 2, y: rect.top + rect.height / 2,
         distance: Math.max(1, Math.hypot(event.clientX - rect.left - rect.width / 2, event.clientY - rect.top - rect.height / 2))
       };
@@ -1243,6 +1254,8 @@
       if (!resizingPhoto || resizingPhoto.id !== event.pointerId) return;
       event.preventDefault();
       var distance = Math.hypot(event.clientX - resizingPhoto.x, event.clientY - resizingPhoto.y);
+      var angle = Math.atan2(event.clientY - resizingPhoto.y, event.clientX - resizingPhoto.x);
+      photos[kind].rotation = resizingPhoto.rotation + angle - resizingPhoto.angle;
       scalePhoto(kind, photos[kind], resizingPhoto.scale * distance / resizingPhoto.distance);
     });
     function finishResize(event) {
@@ -1273,6 +1286,10 @@
     if (document.activeElement !== input) beginEdit();
   });
   input.addEventListener('blur', function () {
+    if (editorMode === 'text' && !dismissEdit && window.matchMedia('(max-width: 440px)').matches) {
+      commitMode();
+      return;
+    }
     if (editingLock && !dismissEdit) {
       armInput();
       try { input.focus({ preventScroll: true }); }
