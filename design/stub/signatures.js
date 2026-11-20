@@ -478,6 +478,7 @@
     var seal = editor.querySelector('.sig-slide.is-on .sig-seal');
     editor.style.setProperty('--text-seal-width', seal.offsetWidth + 'px');
     editor.style.setProperty('--text-seal-height', seal.offsetHeight + 'px');
+    editor.style.setProperty('--text-swatches-top', swatches.getBoundingClientRect().top + 'px');
     setEditorMode('text');
     beginEdit();
   }
@@ -1132,6 +1133,21 @@
       if (name !== kind) return;
       var point = pointOf(event, canvas, name);
       if (editorMode === 'text') return;
+      if (editorMode === 'image' && photos[name] && !photoPointers.length) {
+        var photo = photos[name];
+        var angle = photo.rotation || 0;
+        var dx = point.x - photo.cx;
+        var dy = point.y - photo.cy;
+        var localX = dx * Math.cos(angle) + dy * Math.sin(angle);
+        var localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
+        var radiusX = photo.w * photo.fit * photo.userScale / 2;
+        var radiusY = photo.h * photo.fit * photo.userScale / 2;
+        if ((localX / radiusX) ** 2 + (localY / radiusY) ** 2 > 1) {
+          event.preventDefault();
+          commitMode();
+          return;
+        }
+      }
       var hit = editorMode === 'image' ? 'photo' : 'draw';
       if (event.pointerType === 'touch') {
         if (photoPointers.length >= 2) return;

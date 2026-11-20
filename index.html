@@ -1589,7 +1589,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       height: var(--text-seal-height);
     }
     .sig-editor[data-mode="text"] .sig-swatches {
-      top: calc(var(--vv-top, 0px) + (var(--vvh, 100dvh) - 100px) / 2 + (var(--text-seal-height) / 2) + 28px);
+      top: var(--text-swatches-top);
     }
   }
 
@@ -1751,7 +1751,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261120-no-pencil"></script>
+<script src="design/stub/signatures.js?v=20261120-dismiss-image"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
