@@ -1854,7 +1854,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261120-pixel-previews"></script>
+<script src="design/stub/signatures.js?v=20261120-fast-catalog"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -2484,8 +2484,8 @@ function applyPlane(root, colorHex) {
 // The open tab only. Switching L tabs fetches the other models then.
 const bootTab = currentModelTab();
 loadGltf(bootTab.apple);
-loadGltf(bootTab.half);
-loadGltf(bootTab.stamp);
+
+
 
 const pageScroll = { boost: 15 };
 
@@ -4650,7 +4650,7 @@ function mountSignStamp(host) {
       }
     });
   }
-  syncToolModels();
+  // Flat imprints need no hidden tool meshes at startup.
 
   // Themes 0–2: stamp and half share fill 0.72 and key 1.7 on every L tab
   // except mat and plane. Theme 3 copies the corner apple's live fill and key
