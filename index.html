@@ -1513,8 +1513,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .sig-toolbar .sig-tool img { display: block; flex: none; }
   .sig-toolbar .sig-draw img { transform: translateY(10px); }
+  .sig-toolbar .sig-tool,
+  .sig-toolbar .sig-tool:hover { opacity: 1; }
   .sig-toolbar .sig-tool:disabled { opacity: .3; cursor: default; }
-  .sig-toolbar .sig-tool:not(:disabled):active { opacity: .55; }
+  .sig-toolbar .sig-tool:not(:disabled):active { opacity: .3; }
   .sig-editor .sig-swatches { z-index: 5; flex-direction: row-reverse; }
   .sig-editor .sig-swatches button {
     position: relative;
