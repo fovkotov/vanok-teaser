@@ -299,7 +299,6 @@
       '<div class="sig-bar sig-toolbar" role="toolbar" aria-label="Signature tools">' +
         '<button type="button" class="sig-tool sig-undo" aria-label="Undo" disabled><img src="design/stub/editor/undo.svg" alt=""></button>' +
         '<button type="button" class="sig-tool sig-upload" aria-label="Image" aria-pressed="false"><img src="design/stub/editor/image.svg" alt=""></button>' +
-        '<button type="button" class="sig-tool sig-draw" aria-label="Draw" aria-pressed="true"><img src="design/stub/editor/draw.svg" alt=""></button>' +
         '<button type="button" class="sig-tool sig-type" aria-label="Text" aria-pressed="false"><img src="design/stub/editor/text.svg" alt=""></button>' +
         '<button type="button" class="sig-tool sig-redo" aria-label="Redo" disabled><img src="design/stub/editor/redo.svg" alt=""></button>' +
       '</div>' +
@@ -448,7 +447,6 @@
     editor.dataset.mode = editorMode;
     editor.querySelector('.sig-undo').disabled = !history[kind].undo.length;
     editor.querySelector('.sig-redo').disabled = !history[kind].redo.length;
-    editor.querySelector('.sig-draw').setAttribute('aria-pressed', String(editorMode === 'draw'));
     editor.querySelector('.sig-upload').setAttribute('aria-pressed', String(editorMode === 'image'));
     editor.querySelector('.sig-type').setAttribute('aria-pressed', String(editorMode === 'text'));
     editor.querySelector('.sig-create').setAttribute('aria-label', editorMode === 'draw' ? 'Create Signature' : 'Done');
@@ -501,9 +499,6 @@
     orbit.style.height = height + 'px';
     orbit.style.transform = 'translate(-50%, -50%) rotate(' + (photo.rotation || 0) + 'rad)';
   }
-  editor.querySelector('.sig-draw').addEventListener('click', function () {
-    if (editorMode !== 'draw') commitMode();
-  });
   editor.querySelector('.sig-type').addEventListener('click', beginTextMode);
   editor.querySelector('.sig-text-done').addEventListener('click', commitMode);
   editor.querySelector('.sig-editor-back').addEventListener('click', function () {
