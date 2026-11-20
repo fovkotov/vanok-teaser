@@ -1596,7 +1596,54 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .sig-photo-orbit button[data-handle="right"] { left: 100%; top: 50%; }
   .sig-editor[data-mode="image"] .sig-stage { cursor: move; }
   @media (max-width: 440px) {
-    .sig-editor-head { width: calc(100% - 18px); }
+    /* Mobile Figma headers: 24px insets, 20px icons, 14px type.
+       The 44px buttons extend 12px around each visible icon. */
+    .sig-title {
+      top: 26px;
+      font-size: 14px;
+      line-height: 16px;
+    }
+    .sig-close, .sig-back {
+      left: 12px;
+      top: 12px;
+      width: 44px;
+      height: 44px;
+    }
+    .sig-close::before, .sig-back::before {
+      left: 12px;
+      top: 12px;
+      width: 20px;
+      height: 20px;
+      -webkit-mask-size: contain;
+      mask-size: contain;
+    }
+    .sig-close::before {
+      -webkit-mask-image: url("design/stub/editor/mobile-close.svg");
+      mask-image: url("design/stub/editor/mobile-close.svg");
+    }
+    .sig-back::before {
+      -webkit-mask-image: url("design/stub/editor/mobile-back.svg");
+      mask-image: url("design/stub/editor/mobile-back.svg");
+    }
+    .sig-close::after, .sig-back::after { content: none; }
+    .sig-shapes .sig-close { display: none; }
+    .sig-editor-head {
+      top: 12px;
+      width: calc(100% - 24px);
+      height: 44px;
+    }
+    .sig-editor-head button { width: 44px; height: 44px; }
+    .sig-editor-head .sig-editor-back img { content: url("design/stub/editor/mobile-back.svg"); }
+    .sig-editor-head .sig-create img { content: url("design/stub/editor/mobile-done.svg"); }
+    .sig-editor-title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      line-height: 16px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
     .sig-editor[data-mode="text"] .sig-text-done { display: none; }
     .sig-editor .sig-swatches { top: calc(50% + 163 * var(--sig-k) + 32px); }
     .sig-editor[data-mode="text"] .sig-seal {
