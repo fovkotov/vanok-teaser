@@ -504,14 +504,6 @@
   }
   editor.querySelector('.sig-draw').addEventListener('click', function () {
     if (editorMode !== 'draw') commitMode();
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var pencil = this.querySelector('img');
-    pencil.getAnimations().forEach(function (animation) { animation.cancel(); });
-    pencil.animate([
-      { transform: 'translateY(10px)' },
-      { transform: 'translateY(16px)', offset: 0.4 },
-      { transform: 'translateY(10px)' }
-    ], { duration: 220, easing: 'ease-in-out' });
   });
   editor.querySelector('.sig-type').addEventListener('click', beginTextMode);
   editor.querySelector('.sig-text-done').addEventListener('click', commitMode);
