@@ -4042,20 +4042,6 @@ function mountSignStamp(host) {
     for (const item of catalogBag.slice(0, 6)) prepareInk(item.src);
     return selected;
   }
-  async function launchStamp(shot) {
-    const generation = toolGeneration;
-    const [image] = await Promise.all([prepareInk(shot.src).promise, toolLoadPromise]);
-    if (!alive || !host.isConnected || !image) return;
-    const source = shot.kind === 'apple' ? appleModel : stampModel;
-    if (!source || generation !== toolGeneration) { placeInk(shot); return; }
-    const model = cloneTool(source);
-    if (shot.bodyHex != null) paintTool(model, shot.kind, shot.bodyHex);
-    const flight = { shot, model, shadow: cloneShadow(), phase: 'descend', phaseU: 0 };
-    flights.push(flight);
-    const goal = targetOf(shot);
-    applyPose(flight, goal.x, goal.edge, 0, shot.rot, 0, poseFor(flight, 'descend', 0));
-  }
-
   function placeAt(item, point) {
     const hr = host.getBoundingClientRect();
     placeSeal(item, point.px + hr.left, point.py + hr.top);
@@ -4088,7 +4074,7 @@ function mountSignStamp(host) {
     pressN += 1;
     const shot = sampleShot(point, rig, kind);
     if (!shot) return;
-    launchStamp(shot);
+    placeInk(shot);
     const ui = fileUis.find((item) => item.kind === kind);
     if (ui) ui.last.textContent = 'Сейчас: ' + shot.file;
     refreshFiles();
@@ -4116,7 +4102,7 @@ function mountSignStamp(host) {
     const store = window.VanokSignatures;
     if (store && typeof store.rememberPlaced === 'function') store.rememberPlaced(kind, optionId(item));
     pressN += 1;
-    launchStamp(shot);
+    placeInk(shot);
     const ui = fileUis.find((row) => row.kind === kind);
     if (ui) ui.last.textContent = 'Сейчас: ' + shot.file;
     refreshFiles();
