@@ -1402,6 +1402,7 @@
     setScreen('library');
     revealModal();
     grid.scrollTop = 0;
+    library.scrollTop = 0;
     renderGrid(freshId, from);
   }
   function closeModal(done) {
@@ -1837,7 +1838,7 @@
       var path = document.getElementById('sig-path-' + name);
       var offset = path.parentNode.querySelector('textPath').getAttribute('startOffset') || '0';
       letters = '<path id="sig-export-path" d="' + xmlEscape(path.getAttribute('d')) + '" fill="none"/>' +
-        '<text fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="' + (name === 'apple' ? 13 / APPLE_PREVIEW_SCALE * (VB.apple.w / 326) * editorFontScale : 13) + '">' +
+        '<text xml:space="preserve" style="white-space:pre" fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="' + (name === 'apple' ? 13 / APPLE_PREVIEW_SCALE * (VB.apple.w / 326) * editorFontScale : 13) + '">' +
         '<textPath href="#sig-export-path" startOffset="' + xmlEscape(offset) + '">' + xmlEscape(value) + '</textPath></text>';
     }
     var picture = '';

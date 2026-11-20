@@ -1195,6 +1195,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     scrollbar-width: none;
   }
   .sig-grid::-webkit-scrollbar { display: none; }
+  .sig-slide text { white-space: pre; }
   @media (min-width: 441px) {
     .sig-modal { --k: calc(100vw / 1440); }
     .sig-head {
@@ -1316,12 +1317,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     .sig-head { width: min(calc(464 * var(--k)), calc(100% - 24 * var(--k))); gap: calc(12 * var(--k)); padding: calc(12 * var(--k)) 0; }
     .sig-head-side { gap: calc(8 * var(--k)); }
     .sig-grid {
-      left: calc(12 * var(--k));
-      width: calc(100vw - 24 * var(--k));
-      padding: calc(100 * var(--k)) 0 calc(24 * var(--k));
+      position: relative;
+      left: 0;
+      bottom: auto;
+      width: 100%;
+      min-height: 100%;
+      box-sizing: border-box;
+      overflow: visible;
+      padding: calc(100 * var(--k)) calc(12 * var(--k)) calc(24 * var(--k));
       column-gap: calc(12 * var(--k));
       row-gap: calc(16 * var(--k));
     }
+    .sig-library { overflow: auto; scrollbar-width: none; }
+    .sig-library::-webkit-scrollbar { display: none; }
+    .sig-library .sig-head { position: fixed; }
     .sig-shapes { --shape: min(calc(342.873 * var(--k)), calc((100% - 16.253 * var(--k)) / 2)); }
     .sig-shape[data-kind="stamp"] { left: calc(50% - var(--shape) - 8.1265 * var(--k)); }
     .sig-shape[data-kind="apple"] { left: calc(50% + 8.1265 * var(--k)); }
@@ -1758,7 +1767,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261120-pencil-press"></script>
+<script src="design/stub/signatures.js?v=20261120-hover-spaces"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
