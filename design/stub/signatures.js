@@ -533,7 +533,7 @@
       var node = path.parentNode.querySelector('textPath');
       var value = texts[name];
       var placeholder = false;
-      node.textContent = placeholder ? 'Type Here...' : (value || '');
+      node.textContent = placeholder ? 'Type Here...' : (value || '').replace(/ /g, '\u00a0');
       text.setAttribute('fill', selectedColor().hex);
       text.setAttribute('fill-opacity', placeholder ? '0.45' : '1');
     });
@@ -1839,7 +1839,7 @@
       var offset = path.parentNode.querySelector('textPath').getAttribute('startOffset') || '0';
       letters = '<path id="sig-export-path" d="' + xmlEscape(path.getAttribute('d')) + '" fill="none"/>' +
         '<text xml:space="preserve" style="white-space:pre" fill="' + hex + '" text-anchor="start" font-family="Arial, Helvetica, sans-serif" font-size="' + (name === 'apple' ? 13 / APPLE_PREVIEW_SCALE * (VB.apple.w / 326) * editorFontScale : 13) + '">' +
-        '<textPath href="#sig-export-path" startOffset="' + xmlEscape(offset) + '">' + xmlEscape(value) + '</textPath></text>';
+        '<textPath href="#sig-export-path" startOffset="' + xmlEscape(offset) + '">' + xmlEscape(value.replace(/ /g, '\u00a0')) + '</textPath></text>';
     }
     var picture = '';
     if (photos[name] && photos[name].tinted) {
