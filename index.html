@@ -1704,7 +1704,7 @@ if (new URLSearchParams(location.search).get('embed') === 'stamps') {
     parent.postMessage({type:'vanok-scroll', delta:e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1)}, location.origin);
   }, {passive:false});
   addEventListener('keydown', e => {
-    if (e.code !== 'KeyG' && e.code !== 'Escape') return;
+    if ((e.code !== 'KeyG' && e.code !== 'Escape') || e.shiftKey) return;
     e.stopImmediatePropagation(); e.preventDefault();
     parent.postMessage({type:'vanok-settings', code:e.code, key:e.key}, location.origin);
   }, true);
@@ -1816,7 +1816,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         root.dispatchEvent(new CustomEvent('vanok-theme'));
         return;
       }
-      if (event.code !== 'KeyR') return;
+      if (event.code !== 'KeyG' || !event.shiftKey) return;
       if (typing) return;
       var grid = document.querySelector('.layout-grid');
       if (!grid) return;
@@ -4461,7 +4461,7 @@ function mountSignStamp(host) {
       clearPlacedStamps();
       return;
     }
-    if (e.code !== 'KeyG' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code !== 'KeyG' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
     if (isTyping(e.target) || isTyping(document.activeElement)) return;
     e.preventDefault();
     panel.hidden = !panel.hidden;
