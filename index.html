@@ -1595,6 +1595,32 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .sig-photo-orbit button[data-handle="left"] { left: 0; top: 50%; }
   .sig-photo-orbit button[data-handle="right"] { left: 100%; top: 50%; }
   .sig-editor[data-mode="image"] .sig-stage { cursor: move; }
+  @media (min-width: 441px) {
+    .sig-editor-head {
+      top: 0;
+      width: min(calc(464 * var(--editor-ui)), calc(100% - 48px));
+      height: calc(40 * var(--editor-ui));
+    }
+    .sig-editor-title {
+      position: absolute;
+      left: calc(22 * var(--editor-ui));
+      font-size: calc(14 * var(--editor-ui));
+      line-height: normal;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .sig-editor-head button {
+      position: absolute;
+      top: 0;
+    }
+    .sig-editor-head .sig-editor-back { left: calc(-15 * var(--editor-ui)); }
+    .sig-editor-head .sig-create { right: calc(-15 * var(--editor-ui)); }
+    .sig-editor-head button img {
+      width: calc(14 * var(--editor-ui));
+      height: calc(14 * var(--editor-ui));
+      transform: translateY(calc(-2 * var(--editor-ui)));
+    }
+  }
   @media (max-width: 440px) {
     /* Mobile Figma headers: 24px insets, 20px icons, 14px type.
        The 44px buttons extend 12px around each visible icon. */
