@@ -508,11 +508,8 @@
   editor.querySelector('.sig-type').addEventListener('click', beginTextMode);
   editor.querySelector('.sig-text-done').addEventListener('click', commitMode);
   editor.querySelector('.sig-editor-back').addEventListener('click', function () {
-    if (editorMode === 'draw') { openShapes(); return; }
-    var snapshot = modeSnapshot;
-    modeSnapshot = null;
-    setEditorMode('draw');
-    if (snapshot) restoreEditor(snapshot);
+    if (editorMode !== 'draw') commitMode();
+    openShapes();
   });
   ['undo', 'redo'].forEach(function (action) {
     editor.querySelector('.sig-' + action).addEventListener('click', function () {
