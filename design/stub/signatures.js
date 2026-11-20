@@ -1643,24 +1643,59 @@
 
   var cardImageQueue = [];
   var cardImageLoads = 0;
+  function progressiveCardImage(img) {
+    var source = img.dataset.src;
+    var finished = false;
+    var level = 0;
+    function show(image, quality) {
+      if (!img.isConnected || quality <= level) return;
+      level = quality;
+      img.classList.toggle('is-pixel-preview', quality < 3);
+      img.src = image.src;
+      img.parentNode.classList.remove('is-loading');
+    }
+    // Fetch the original immediately too: cached images never wait for an
+    // animation, and late previews can never replace the sharp version.
+    var original = new Image();
+    original.crossOrigin = 'anonymous';
+    original.onload = function () {
+      var decoded = original.decode ? original.decode().catch(function () {}) : Promise.resolve();
+      decoded.then(function () { show(original, 3); complete(); });
+    };
+    original.onerror = complete;
+    function complete() {
+      if (finished) return;
+      finished = true;
+      if (img.parentNode) {
+        img.parentNode.classList.remove('is-loading');
+        img.parentNode.removeAttribute('aria-busy');
+      }
+      cardImageLoads -= 1;
+      loadCardImages();
+    }
+    original.src = source;
+    if (LOCAL_HOST || !/^https?:/.test(new URL(source, location.href).protocol) || /^(data:|blob:)/.test(source)) return;
+    var url = new URL(source, location.href);
+    if (url.origin !== location.origin && url.hostname !== 'vanok-signatures.fovkotov.workers.dev') return;
+    var cdnSource = url.origin === location.origin ? url.pathname + url.search : url.href;
+    function preview(width, quality) {
+      if (finished || !img.isConnected) return;
+      var small = new Image();
+      small.onload = function () {
+        if (finished) return;
+        show(small, quality);
+        if (quality === 1) preview(80, 2);
+      };
+      small.src = '/.netlify/images?url=' + encodeURIComponent(cdnSource) + '&w=' + width + '&fm=webp&q=70';
+    }
+    preview(24, 1);
+  }
   function loadCardImages() {
     while (cardImageLoads < 3 && cardImageQueue.length) {
       var img = cardImageQueue.shift();
       if (!img.isConnected) continue;
       cardImageLoads += 1;
-      img.onload = function () {
-        this.parentNode.classList.remove('is-loading');
-        this.parentNode.removeAttribute('aria-busy');
-        cardImageLoads -= 1;
-        loadCardImages();
-      };
-      img.onerror = function () {
-        this.parentNode.classList.remove('is-loading');
-        this.parentNode.removeAttribute('aria-busy');
-        cardImageLoads -= 1;
-        loadCardImages();
-      };
-      img.src = img.dataset.src;
+      progressiveCardImage(img);
     }
   }
   var cardImageObserver = new IntersectionObserver(function (entries) {

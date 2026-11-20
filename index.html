@@ -1368,6 +1368,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   }
   .sig-grid .sig-card:not(.sig-add) { cursor: pointer; }
   .sig-card img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .sig-card img.is-pixel-preview { image-rendering: pixelated; }
   .sig-card.is-loading {
     background: radial-gradient(circle, currentColor 0 18%, transparent 19%) center / 12px 12px no-repeat;
     color: color-mix(in srgb, var(--blue) 15%, transparent);
@@ -1853,7 +1854,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }, { passive: false, capture: true });
   })();
 </script>
-<script src="design/stub/signatures.js?v=20261120-preserve-all-spaces"></script>
+<script src="design/stub/signatures.js?v=20261120-pixel-previews"></script>
 <script type="importmap">
 { "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
