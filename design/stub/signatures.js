@@ -1708,7 +1708,7 @@
   }
   function renderGrid(freshId, from) {
     var list = catalog();
-    library.querySelector('.sig-title').textContent = 'Signature Library・' + list.length;
+    library.querySelector('.sig-title').textContent = 'Signature Library';
     document.dispatchEvent(new Event('vanok-catalog'));
     var nodes = [addCard()].concat(list.map(cardNode));
     cardImageObserver.disconnect();
