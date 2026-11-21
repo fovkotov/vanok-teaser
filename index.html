@@ -3583,41 +3583,6 @@ function mountSignStamp(host) {
   }
   refreshFiles();
 
-  let stampAudio;
-  function unlockStampAudio() {
-    try {
-      const Audio = window.AudioContext || window.webkitAudioContext;
-      if (!Audio) return;
-      stampAudio ||= new Audio();
-      if (stampAudio.state === 'suspended') stampAudio.resume().catch(() => {});
-    } catch (_) {}
-  }
-  addEventListener('pointerdown', unlockStampAudio, { passive: true });
-  function playStampSound() {
-    if (!stampAudio || stampAudio.state !== 'running') return;
-    const t = stampAudio.currentTime;
-    const buffer = stampAudio.createBuffer(1, Math.ceil(stampAudio.sampleRate * .09), stampAudio.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let i = 0; i < samples.length; i++) samples[i] = (Math.random() * 2 - 1) * Math.exp(-i / (stampAudio.sampleRate * .016));
-    const noise = stampAudio.createBufferSource();
-    noise.buffer = buffer;
-    const filter = stampAudio.createBiquadFilter();
-    filter.type = 'lowpass'; filter.frequency.value = 1600;
-    const gain = stampAudio.createGain(); gain.gain.value = .24;
-    noise.connect(filter).connect(gain).connect(stampAudio.destination);
-    noise.start(t);
-    const thump = stampAudio.createOscillator();
-    const envelope = stampAudio.createGain();
-    thump.frequency.setValueAtTime(150, t);
-    thump.frequency.exponentialRampToValueAtTime(65, t + .065);
-    envelope.gain.setValueAtTime(.13, t);
-    envelope.gain.exponentialRampToValueAtTime(.001, t + .075);
-    thump.connect(envelope).connect(stampAudio.destination);
-    thump.start(t); thump.stop(t + .08);
-    noise.onended = () => { noise.disconnect(); filter.disconnect(); gain.disconnect(); };
-    thump.onended = () => { thump.disconnect(); envelope.disconnect(); };
-  }
-
   function placeInk(current) {
     if (current.placed || current.preparing || !current.src) return;
     const prepared = prepareInk(current.src);
@@ -3630,7 +3595,6 @@ function mountSignStamp(host) {
       return;
     }
     current.placed = true;
-    playStampSound();
     prepared.used = true;
     fillInkReserve();
     if (current.rig.stack === 'replace') {
