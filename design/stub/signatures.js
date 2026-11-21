@@ -1134,7 +1134,10 @@
       var name = canvas.parentNode.dataset.kind;
       if (name !== kind) return;
       var point = pointOf(event, canvas, name);
-      if (editorMode === 'text') return;
+      if (editorMode === 'text') {
+        if (window.matchMedia('(max-width: 440px)').matches) return;
+        commitMode();
+      }
       if (editorMode === 'image' && photos[name] && !photoPointers.length) {
         var photo = photos[name];
         var angle = photo.rotation || 0;
