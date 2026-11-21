@@ -1623,6 +1623,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .sig-editor[data-mode="image"] .sig-stage { cursor: move; }
   @media (min-width: 441px) {
     .sig-editor { --editor-ui: var(--k); }
+    .sig-shapes .sig-back::before {
+      -webkit-mask: url("design/stub/editor/back.svg") center / contain no-repeat;
+      mask: url("design/stub/editor/back.svg") center / contain no-repeat;
+    }
     .sig-editor-head {
       top: 0;
       width: min(calc(464 * var(--k)), calc(100% - 24 * var(--k)));
