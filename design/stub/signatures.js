@@ -1942,7 +1942,10 @@
   modal.querySelector('.sig-create').addEventListener('click', function (event) {
     event.preventDefault();
     event.stopPropagation();
-    if (editorMode !== 'draw') { commitMode(); return; }
+    if (editorMode !== 'draw') {
+      commitMode();
+      if (window.matchMedia('(max-width: 440px)').matches) return;
+    }
     if (creatingSeal) return;
     var color = selectedColor();
     var madeKind = kind;
