@@ -1622,29 +1622,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .sig-photo-orbit button[data-handle="right"] { left: 100%; top: 50%; }
   .sig-editor[data-mode="image"] .sig-stage { cursor: move; }
   @media (min-width: 441px) {
+    .sig-editor { --editor-ui: var(--k); }
     .sig-editor-head {
       top: 0;
-      width: min(calc(464 * var(--editor-ui)), calc(100% - 48px));
-      height: calc(40 * var(--editor-ui));
+      width: min(calc(464 * var(--k)), calc(100% - 24 * var(--k)));
+      height: calc(48 * var(--k));
     }
     .sig-editor-title {
       position: absolute;
-      left: calc(22 * var(--editor-ui));
-      font-size: calc(14 * var(--editor-ui));
+      left: calc(32 * var(--k));
+      font-size: calc(14 * var(--k));
       line-height: normal;
       white-space: nowrap;
       pointer-events: none;
     }
     .sig-editor-head button {
       position: absolute;
-      top: 0;
+      top: 50%;
+      transform: translateY(-50%);
     }
-    .sig-editor-head .sig-editor-back { left: calc(-15 * var(--editor-ui)); }
-    .sig-editor-head .sig-create { right: calc(-15 * var(--editor-ui)); }
+    .sig-editor-head .sig-editor-back { left: calc(-10 * var(--k)); }
+    .sig-editor-head .sig-create { right: calc(-10 * var(--k)); }
     .sig-editor-head button img {
-      width: calc(14 * var(--editor-ui));
-      height: calc(14 * var(--editor-ui));
-      transform: translateY(calc(-2 * var(--editor-ui)));
+      width: calc(14 * var(--k));
+      height: calc(14 * var(--k));
     }
   }
   @media (max-width: 440px) {
