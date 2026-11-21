@@ -1590,6 +1590,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     font: 400 calc(12 * var(--editor-ui))/1.2 Arial, sans-serif;
   }
   .sig-editor[data-mode="text"] .sig-text-done { display: flex; }
+  @media (min-width: 441px) {
+    .sig-editor[data-mode="text"] .sig-upload,
+    .sig-editor[data-mode="text"] .sig-draw,
+    .sig-editor[data-mode="text"] .sig-type { display: none; }
+    .sig-editor[data-mode="text"] .sig-toolbar { justify-content: space-between; }
+    .sig-editor[data-mode="text"] .sig-toolbar .sig-tool { flex: 0 0 44px; }
+    .sig-editor[data-mode="text"] .sig-text-done {
+      top: auto;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      width: auto;
+      min-width: 80px;
+      height: max(52px, calc(52 * var(--editor-ui)));
+    }
+  }
   .sig-photo-orbit {
     position: absolute;
     z-index: 4;
