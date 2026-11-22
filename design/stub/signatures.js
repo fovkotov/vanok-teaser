@@ -1650,6 +1650,7 @@
     while (cardImageLoads < 3 && cardImageQueue.length) {
       var img = cardImageQueue.shift();
       if (!img.isConnected) continue;
+      img.parentNode.style.setProperty('--loader-width', img.parentNode.clientWidth + 'px');
       cardImageLoads += 1;
       img.onload = img.onerror = function () {
         if (this.parentNode) {

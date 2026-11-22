@@ -1371,9 +1371,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   .sig-grid .sig-card:not(.sig-add) { cursor: pointer; }
   .sig-card img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .sig-card img.is-pixel-preview { image-rendering: pixelated; }
-  .sig-card.is-loading {
-    background: radial-gradient(circle, currentColor 0 18%, transparent 19%) center / 12px 12px no-repeat;
-    color: color-mix(in srgb, var(--blue) 15%, transparent);
+  .sig-card.is-loading { position: relative; isolation: isolate; }
+  .sig-card.is-loading::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: url("design/stub/stamp-loading.svg") 0 0 / var(--loader-width, 500px) 100% repeat-x;
+    animation: stamp-loading-drift 6s steps(44, end) infinite;
+  }
+  @keyframes stamp-loading-drift {
+    from { background-position-x: 0; }
+    to { background-position-x: calc(-1 * var(--loader-width, 500px)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sig-card.is-loading::before { animation: none; }
   }
   .sig-card[data-expanded-export] img {
     transform: scale(var(--sig-library-mobile-scale, 1));
