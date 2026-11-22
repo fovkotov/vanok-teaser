@@ -1378,12 +1378,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     inset: 0;
     overflow: hidden;
     pointer-events: none;
-    background: url("design/stub/stamp-loading.svg") 0 0 / var(--loader-width, 500px) 100% repeat-x;
+    background: url("design/stub/stamp-loading.svg") 0 0 / calc(var(--loader-width, 500px) / 2) 100% repeat-x;
     animation: stamp-loading-drift 6s steps(44, end) infinite;
   }
   @keyframes stamp-loading-drift {
     from { background-position-x: 0; }
-    to { background-position-x: calc(-1 * var(--loader-width, 500px)); }
+    to { background-position-x: calc(-0.5 * var(--loader-width, 500px)); }
   }
   @media (prefers-reduced-motion: reduce) {
     .sig-card.is-loading::before { animation: none; }
