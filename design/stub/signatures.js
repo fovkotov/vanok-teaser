@@ -1644,6 +1644,14 @@
     else closeModal();
   }, true);
 
+  var jpegCatalog = {};
+  fetch('design/stamps/catalog-jpeg.json').then(function (response) { return response.json(); }).then(function (map) {
+    jpegCatalog = map;
+    if (library.classList.contains('is-on')) renderGrid();
+  }).catch(function () {});
+  document.documentElement.addEventListener('vanok-theme', function () {
+    if (library.classList.contains('is-on')) renderGrid();
+  });
   var cardImageQueue = [];
   var cardImageLoads = 0;
   function loadCardImages() {
@@ -1659,7 +1667,14 @@
         cardImageLoads -= 1;
         loadCardImages();
       };
-      img.src = img.dataset.src;
+      var preview = jpegCatalog[img.dataset.src];
+      var theme = document.documentElement.dataset.theme || '0';
+      var finish = img.onload;
+      img.onerror = function () {
+        this.onerror = finish;
+        this.src = this.dataset.src;
+      };
+      img.src = preview && preview[theme] || img.dataset.src;
     }
   }
   var cardImageObserver = new IntersectionObserver(function (entries) {
