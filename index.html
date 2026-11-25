@@ -1887,8 +1887,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <script src="design/stub/signatures.js?v=20261122-transparent-catalog"></script>
 <script type="importmap">
 { "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    "three": "/design/vendor/three/build/three.module.js",
+    "three/addons/": "/design/vendor/three/examples/jsm/"
 } }
 </script>
 <script type="module">
@@ -2820,26 +2820,11 @@ function revealTeaser() {
   window.__vanokStampsAt = Infinity;
 }
 
-const introImages = [
-  ...STAMP_IMPRINTS.map((item) => item.src),
-  ...APPLE_IMPRINTS.map((item) => item.src),
-  'design/stub/wordmark.svg',
-  'design/stub/wordmark-vanok-ui.svg',
-  'design/stub/wordmark-regular-ui.svg',
-  'design/stub/wordmark-8a7e59.svg',
-  'design/stub/wordmark-green.svg',
-  'design/stub/wordmark-star.svg',
-  'design/stub/crosshair.svg',
-  'design/stub/line.svg',
-];
+// The intro needs only its active visuals; other themes decode when shown.
 const introT0 = window.__vanokIntroT0 || performance.now();
-Promise.race([
-  Promise.all(introImages.map(decodeIntroImage)),
-  new Promise((resolve) => setTimeout(resolve, INTRO_LIMIT_MS)),
-]).then(() => {
-  const wait = Math.max(0, INTRO_BEAT_MS - (performance.now() - introT0));
-  setTimeout(revealTeaser, wait);
-});
+const activeWordmark = document.querySelector('.desk .wordmark');
+if (activeWordmark) activeWordmark.fetchPriority = 'high';
+setTimeout(revealTeaser, Math.max(0, INTRO_BEAT_MS - (performance.now() - introT0)));
 
 const STAMP_CASTS = [
   { file: 'blue.png', hex: 0x0a1ae9, color: 'blue' },
